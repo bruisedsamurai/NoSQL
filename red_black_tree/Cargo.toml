@@ -1,0 +1,12 @@
+[package]
+name = "red_black_tree"
+version = "0.1.0"
+authors = ["hundredeir <20334754+hundredeir@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[dev-dependencies]
+rand = "0.7.3"
