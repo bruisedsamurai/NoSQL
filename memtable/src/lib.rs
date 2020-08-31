@@ -1,3 +1,4 @@
+//TODO: Rename file to red black tree and use lib.rs for memtable
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,7 +68,8 @@ mod tests {
                 .take(20)
                 .collect::<String>()
         };
-        let sample_vec: Vec<String> = [0..10].iter().map(sample).collect();
+        let sample_vec = vec![0; 20];
+        let sample_vec: Vec<String> = sample_vec.iter().map(sample).collect();
 
         let mut rb_tree = RBTree::new();
 
@@ -81,6 +83,49 @@ mod tests {
                 format!("Did not find key: {}", key)
             );
         }
+    }
+
+    #[test]
+    fn test_tree_len() {
+        let sample = |_| {
+            rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(20)
+                .collect::<String>()
+        };
+        let sample_vec = vec![0; 20];
+        let sample_vec: Vec<String> = sample_vec.iter().map(sample).collect();
+
+        let mut rb_tree = RBTree::new();
+
+        for key in &sample_vec {
+            rb_tree.insert(key, 1);
+        }
+
+        assert_eq!(rb_tree.len(), 20);
+    }
+
+    #[test]
+    fn test_tree_insertion_with_duplicate_keys() {
+        let sample = |_| {
+            "a"
+        };
+        let sample_vec:Vec<i32> = (0..20).collect();
+        let sample_vec: Vec<&str> = sample_vec.iter().map(sample).collect();
+
+        let mut rb_tree = RBTree::new();
+
+        let mut i = 1;
+        for key in sample_vec {
+            rb_tree.insert(key, i);
+            i += 1;
+        }
+
+        assert_eq!(rb_tree.len(), 1);
+        let root_node = rb_tree.root.as_ref().unwrap();
+        assert_eq!(root_node.borrow().key, "a");
+        assert_eq!(root_node.borrow().value, 20);
+
     }
 
     #[test]
@@ -113,6 +158,7 @@ mod tests {
 }
 
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::rc::{Rc, Weak};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -124,7 +170,7 @@ pub enum Color {
 #[derive(Debug)]
 pub struct Node {
     pub key: String,
-    pub value: i32,
+    pub value: i32, //TODO: make this option
     color: Color,
     pub left: Option<Rc<RefCell<Node>>>,
     pub right: Option<Rc<RefCell<Node>>>,
@@ -186,19 +232,30 @@ impl Node {
 #[derive(Debug, Default)]
 pub struct RBTree {
     root: Option<Rc<RefCell<Node>>>,
+    adjacency_list: Vec<Rc<RefCell<Node>>>,
+    length: usize,
 }
 
 impl RBTree {
     pub fn new() -> RBTree {
-        RBTree { root: None }
+        RBTree { root: None , adjacency_list: vec![], length: 0}
     }
 
-    pub fn search(&self, key: &str) -> Option<(String, i32)> {
+    pub fn len(&self) -> usize {
+        self.adjacency_list.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.root.is_none()
+    }
+
+
+    fn search_node(&self, key: &str) -> Option<Rc<RefCell<Node>>> { 
         let mut iter: Option<Rc<RefCell<Node>>> = self.root.as_ref().cloned();
 
         while let Some(iter_node) = iter {
             if key == iter_node.borrow().key {
-                return Some((String::from(key), iter_node.borrow().value));
+                return Some(iter_node);
             } else if key > &iter_node.borrow().key {
                 iter = iter_node.borrow().get_right_child();
             } else {
@@ -208,22 +265,59 @@ impl RBTree {
         None
     }
 
+    pub fn search(&self, key: &str) -> Option<(String, i32)> {
+        let node = self.search_node(key);
+        match node {
+            Some(node) => {
+                Some((node.borrow().key.clone(), node.borrow().value))
+            }
+            None => {
+                None
+            }
+        }
+    }
+
+    pub fn delete (&mut self, key: &str) ->Result<&str, &str> {
+        let node = self.search_node(key);
+        match node {
+            Some(node) => {
+                node.borrow_mut().value = 0; //TODO: Add None here instead
+                Ok("Node succesfully deleted")
+            },
+            None => {
+                Err("No node with given key found")
+            },
+        }
+    }
+
     pub fn insert(&mut self, key: &str, val: i32) {
+
         let mut leaf_node: Option<Rc<RefCell<Node>>> = None;
         let mut iter: Option<Rc<RefCell<Node>>> = self.root.as_ref().cloned();
 
         while let Some(iter_node) = iter {
             leaf_node = Some(Rc::clone(&iter_node));
-            if key < &iter_node.borrow().key {
-                iter = iter_node.borrow().get_left_child();
+
+            match key.cmp(&iter_node.borrow().key) {
+                Ordering::Equal => {
+                    unsafe {
+                        (*iter_node.as_ptr()).value = val;
+                    }
+                    return;
+                },
+                Ordering::Less => {
+                    iter = iter_node.borrow().get_left_child();
+                },
+                Ordering::Greater => {
+                    iter = iter_node.borrow().get_right_child();
+                }
+
             }
-            // We keep keys with equal value to the right
-            else {
-                iter = iter_node.borrow().get_right_child();
-            }
+
         }
 
-        let new_node = Node::new(String::from(key), val, Color::Red, None, None, None);
+        let string = String::from(key);
+        let new_node = Node::new(string, val, Color::Red, None, None, None);
         let new_node_rc = Rc::new(RefCell::new(new_node));
 
         if let Some(leaf) = leaf_node.as_ref() {
@@ -236,6 +330,8 @@ impl RBTree {
         } else {
             self.root = Some(Rc::clone(&new_node_rc));
         }
+
+        self.adjacency_list.push(Rc::clone(&new_node_rc));
 
         self.insert_fixup(new_node_rc);
     }

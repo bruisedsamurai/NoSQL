@@ -1,5 +1,5 @@
 [package]
-name = "red_black_tree"
+name = "memtable"
 version = "0.1.0"
 authors = ["hundredeir <20334754+hundredeir@users.noreply.github.com>"]
 edition = "2018"

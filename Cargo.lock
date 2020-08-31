@@ -21,6 +21,13 @@ version = "0.2.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "memtable"
+version = "0.1.0"
+dependencies = [
+ "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -63,17 +70,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "red_black_tree"
-version = "0.1.0"
-dependencies = [
- "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "server"
 version = "0.1.0"
 dependencies = [
- "red_black_tree 0.1.0",
+ "memtable 0.1.0",
 ]
 
 [[package]]

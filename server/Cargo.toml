@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 
-red_black_tree = { path = "../red_black_tree"}
+memtable = { path = "../memtable"}
