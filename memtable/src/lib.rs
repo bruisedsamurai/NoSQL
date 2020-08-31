@@ -233,12 +233,11 @@ impl Node {
 pub struct RBTree {
     root: Option<Rc<RefCell<Node>>>,
     adjacency_list: Vec<Rc<RefCell<Node>>>,
-    length: usize,
 }
 
 impl RBTree {
     pub fn new() -> RBTree {
-        RBTree { root: None , adjacency_list: vec![], length: 0}
+        RBTree { root: None , adjacency_list: vec![]}
     }
 
     pub fn len(&self) -> usize {
