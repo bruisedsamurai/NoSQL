@@ -107,10 +107,8 @@ mod tests {
 
     #[test]
     fn test_tree_insertion_with_duplicate_keys() {
-        let sample = |_| {
-            "a"
-        };
-        let sample_vec:Vec<i32> = (0..20).collect();
+        let sample = |_| "a";
+        let sample_vec: Vec<i32> = (0..20).collect();
         let sample_vec: Vec<&str> = sample_vec.iter().map(sample).collect();
 
         let mut rb_tree = RBTree::new();
@@ -125,7 +123,6 @@ mod tests {
         let root_node = rb_tree.root.as_ref().unwrap();
         assert_eq!(root_node.borrow().key, "a");
         assert_eq!(root_node.borrow().value, 20);
-
     }
 
     #[test]
@@ -154,6 +151,225 @@ mod tests {
             i1 += 1;
             i2 += 1;
         }
+    }
+
+    #[test]
+    fn test_tree_node_arrangement() {
+        let mut tree = RBTree::new();
+        assert!(tree.root.is_none());
+
+        tree.insert("b", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
+
+        tree.insert("a", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_left_child()
+                .unwrap()
+                .borrow()
+                .key,
+            "a"
+        );
+
+        tree.insert("c", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_left_child()
+                .unwrap()
+                .borrow()
+                .key,
+            "a"
+        );
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_right_child()
+                .unwrap()
+                .borrow()
+                .key,
+            "c"
+        );
+
+        tree.insert("d", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_left_child()
+                .unwrap()
+                .borrow()
+                .key,
+            "a"
+        );
+        let c_node = tree
+            .root
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .get_right_child()
+            .unwrap();
+        assert_eq!(c_node.borrow().key, "c");
+        assert_eq!(c_node.borrow().get_right_child().unwrap().borrow().key, "d");
+
+        tree.insert("e", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_left_child()
+                .unwrap()
+                .borrow()
+                .key,
+            "a"
+        );
+        let d_node = tree
+            .root
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .get_right_child()
+            .unwrap();
+        assert_eq!(d_node.borrow().key, "d");
+        assert_eq!(d_node.borrow().get_left_child().unwrap().borrow().key, "c");
+        assert_eq!(d_node.borrow().get_right_child().unwrap().borrow().key, "e");
+    }
+
+    #[test]
+    fn test_tree_color_arrangement() {
+        let mut tree = RBTree::new();
+        assert!(tree.root.is_none());
+
+        tree.insert("b", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
+
+        tree.insert("a", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_left_child()
+                .unwrap()
+                .borrow()
+                .color,
+            Color::Red
+        );
+
+        tree.insert("c", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_left_child()
+                .unwrap()
+                .borrow()
+                .color,
+            Color::Red
+        );
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_right_child()
+                .unwrap()
+                .borrow()
+                .color,
+            Color::Red
+        );
+
+        tree.insert("d", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_left_child()
+                .unwrap()
+                .borrow()
+                .color,
+            Color::Black
+        );
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_right_child()
+                .unwrap()
+                .borrow()
+                .color,
+            Color::Black
+        );
+        let c_node = tree
+            .root
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .get_right_child()
+            .unwrap();
+        assert_eq!(
+            c_node.borrow().get_right_child().unwrap().borrow().color,
+            Color::Red
+        );
+
+        tree.insert("e", 1);
+        assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_left_child()
+                .unwrap()
+                .borrow()
+                .color,
+            Color::Black
+        );
+        assert_eq!(
+            tree.root
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_right_child()
+                .unwrap()
+                .borrow()
+                .color,
+            Color::Black
+        );
+        let d_node = tree
+            .root
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .get_right_child()
+            .unwrap();
+        assert_eq!(
+            d_node.borrow().get_left_child().unwrap().borrow().color,
+            Color::Red
+        );
+        assert_eq!(
+            d_node.borrow().get_right_child().unwrap().borrow().color,
+            Color::Red
+        );
     }
 }
 
@@ -237,7 +453,10 @@ pub struct RBTree {
 
 impl RBTree {
     pub fn new() -> RBTree {
-        RBTree { root: None , adjacency_list: vec![]}
+        RBTree {
+            root: None,
+            adjacency_list: vec![],
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -248,8 +467,7 @@ impl RBTree {
         self.root.is_none()
     }
 
-
-    fn search_node(&self, key: &str) -> Option<Rc<RefCell<Node>>> { 
+    fn search_node(&self, key: &str) -> Option<Rc<RefCell<Node>>> {
         let mut iter: Option<Rc<RefCell<Node>>> = self.root.as_ref().cloned();
 
         while let Some(iter_node) = iter {
@@ -267,30 +485,23 @@ impl RBTree {
     pub fn search(&self, key: &str) -> Option<(String, i32)> {
         let node = self.search_node(key);
         match node {
-            Some(node) => {
-                Some((node.borrow().key.clone(), node.borrow().value))
-            }
-            None => {
-                None
-            }
+            Some(node) => Some((node.borrow().key.clone(), node.borrow().value)),
+            None => None,
         }
     }
 
-    pub fn delete (&mut self, key: &str) ->Result<&str, &str> {
+    pub fn delete(&mut self, key: &str) -> Result<&str, &str> {
         let node = self.search_node(key);
         match node {
             Some(node) => {
                 node.borrow_mut().value = 0; //TODO: Add None here instead
                 Ok("Node succesfully deleted")
-            },
-            None => {
-                Err("No node with given key found")
-            },
+            }
+            None => Err("No node with given key found"),
         }
     }
 
     pub fn insert(&mut self, key: &str, val: i32) {
-
         let mut leaf_node: Option<Rc<RefCell<Node>>> = None;
         let mut iter: Option<Rc<RefCell<Node>>> = self.root.as_ref().cloned();
 
@@ -303,16 +514,14 @@ impl RBTree {
                         (*iter_node.as_ptr()).value = val;
                     }
                     return;
-                },
+                }
                 Ordering::Less => {
                     iter = iter_node.borrow().get_left_child();
-                },
+                }
                 Ordering::Greater => {
                     iter = iter_node.borrow().get_right_child();
                 }
-
             }
-
         }
 
         let string = String::from(key);
