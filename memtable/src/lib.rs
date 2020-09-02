@@ -7,18 +7,32 @@ mod tests {
 
     #[test]
     fn test_node_color_update() {
-        let mut node = Node::new(String::from("a"), 2, Color::Red, None, None, None);
+        let mut node = Node::new(
+            String::from("a"),
+            Some("askjhkjh"),
+            Color::Red,
+            None,
+            None,
+            None,
+        );
         node.update_color(Color::Black);
         assert_eq!(Color::Black, node.get_color());
     }
 
     #[test]
     fn test_get_left_child() {
-        let node_1 = Node::new(String::from("a"), 2, Color::Red, None, None, None);
+        let node_1 = Node::new(
+            String::from("a"),
+            Some("ausdhiank"),
+            Color::Red,
+            None,
+            None,
+            None,
+        );
         let node_1_rc = Rc::new(RefCell::new(node_1));
         let node_2 = Node::new(
             String::from("a"),
-            2,
+            Some("asbjks"),
             Color::Red,
             Some(Rc::clone(&node_1_rc)),
             None,
@@ -30,11 +44,11 @@ mod tests {
 
     #[test]
     fn test_get_right_child() {
-        let node_1 = Node::new(String::from("a"), 2, Color::Red, None, None, None);
+        let node_1 = Node::new(String::from("a"), Some("b"), Color::Red, None, None, None);
         let node_1_rc = Rc::new(RefCell::new(node_1));
         let node_2 = Node::new(
             String::from("a"),
-            2,
+            Some("a"),
             Color::Red,
             None,
             Some(Rc::clone(&node_1_rc)),
@@ -46,11 +60,11 @@ mod tests {
 
     #[test]
     fn test_get_parent() {
-        let node_1 = Node::new(String::from("a"), 2, Color::Red, None, None, None);
+        let node_1 = Node::new(String::from("a"), Some("asd"), Color::Red, None, None, None);
         let node_1_rc = Rc::new(RefCell::new(node_1));
         let node_2 = Node::new(
             String::from("a"),
-            2,
+            Some("a"),
             Color::Red,
             None,
             None,
@@ -74,7 +88,7 @@ mod tests {
         let mut rb_tree = RBTree::new();
 
         for key in &sample_vec {
-            rb_tree.insert(key, 1);
+            rb_tree.insert(key, key);
         }
 
         for key in &sample_vec {
@@ -99,7 +113,7 @@ mod tests {
         let mut rb_tree = RBTree::new();
 
         for key in &sample_vec {
-            rb_tree.insert(key, 1);
+            rb_tree.insert(key, key);
         }
 
         assert_eq!(rb_tree.len(), 20);
@@ -113,16 +127,14 @@ mod tests {
 
         let mut rb_tree = RBTree::new();
 
-        let mut i = 1;
         for key in sample_vec {
-            rb_tree.insert(key, i);
-            i += 1;
+            rb_tree.insert(key, key);
         }
 
         assert_eq!(rb_tree.len(), 1);
         let root_node = rb_tree.root.as_ref().unwrap();
         assert_eq!(root_node.borrow().key, "a");
-        assert_eq!(root_node.borrow().value, 20);
+        assert_eq!(root_node.borrow().value.as_ref().unwrap(), "a");
     }
 
     #[test]
@@ -134,14 +146,15 @@ mod tests {
 
         let mut tree = RBTree::new();
 
-        for (ch, val) in zip_arr.iter() {
-            tree.insert(&ch.to_string(), **val);
+        for (ch, _val) in zip_arr.iter() {
+            let s = ch.to_string();
+            tree.insert(&s, &s);
         }
 
         let mut char_arr = char_arr;
         char_arr.sort();
 
-        let tree_vec: Vec<(String, i32)> = tree.iter().collect();
+        let tree_vec: Vec<(String, Option<String>)> = tree.iter().collect();
 
         let mut i1 = 0;
         let mut i2 = 0;
@@ -158,10 +171,17 @@ mod tests {
         let mut tree = RBTree::new();
         assert!(tree.root.is_none());
 
-        tree.insert("b", 1);
+        let rand_string_gen = || {
+            rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(20)
+                .collect::<String>()
+        };
+
+        tree.insert("b", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
 
-        tree.insert("a", 1);
+        tree.insert("a", "ajsjhdaukukad");
         assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
         assert_eq!(
             tree.root
@@ -175,7 +195,7 @@ mod tests {
             "a"
         );
 
-        tree.insert("c", 1);
+        tree.insert("c", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
         assert_eq!(
             tree.root
@@ -200,7 +220,7 @@ mod tests {
             "c"
         );
 
-        tree.insert("d", 1);
+        tree.insert("d", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
         assert_eq!(
             tree.root
@@ -223,7 +243,7 @@ mod tests {
         assert_eq!(c_node.borrow().key, "c");
         assert_eq!(c_node.borrow().get_right_child().unwrap().borrow().key, "d");
 
-        tree.insert("e", 1);
+        tree.insert("e", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
         assert_eq!(
             tree.root
@@ -248,15 +268,22 @@ mod tests {
         assert_eq!(d_node.borrow().get_right_child().unwrap().borrow().key, "e");
     }
 
+    fn rand_string_gen() -> String {
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(20)
+            .collect::<String>()
+    }
+
     #[test]
     fn test_tree_color_arrangement() {
         let mut tree = RBTree::new();
         assert!(tree.root.is_none());
 
-        tree.insert("b", 1);
+        tree.insert("b", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
 
-        tree.insert("a", 1);
+        tree.insert("a", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
         assert_eq!(
             tree.root
@@ -270,7 +297,7 @@ mod tests {
             Color::Red
         );
 
-        tree.insert("c", 1);
+        tree.insert("c", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
         assert_eq!(
             tree.root
@@ -295,7 +322,7 @@ mod tests {
             Color::Red
         );
 
-        tree.insert("d", 1);
+        tree.insert("d", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
         assert_eq!(
             tree.root
@@ -331,7 +358,7 @@ mod tests {
             Color::Red
         );
 
-        tree.insert("e", 1);
+        tree.insert("e", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().color, Color::Black);
         assert_eq!(
             tree.root
@@ -371,6 +398,28 @@ mod tests {
             Color::Red
         );
     }
+
+    fn generate_rb_tree(len: usize) -> RBTree {
+        let mut tree = RBTree::new();
+
+        for _ in 0..len {
+            tree.insert(&rand_string_gen(), &rand_string_gen());
+        }
+
+        tree
+    }
+
+    #[test]
+    fn test_deletion() {
+        let mut rb_tree = generate_rb_tree(6);
+
+        rb_tree.insert("a", "abv");
+        rb_tree.delete("a");
+
+        let studd = rb_tree.search("a");
+
+        assert!(studd.unwrap().1.is_none());
+    }
 }
 
 use std::cell::RefCell;
@@ -386,7 +435,7 @@ pub enum Color {
 #[derive(Debug)]
 pub struct Node {
     pub key: String,
-    pub value: i32, //TODO: make this option
+    pub value: Option<String>,
     color: Color,
     pub left: Option<Rc<RefCell<Node>>>,
     pub right: Option<Rc<RefCell<Node>>>,
@@ -396,19 +445,30 @@ pub struct Node {
 impl Node {
     pub fn new(
         key: String,
-        value: i32,
+        value: Option<&str>,
         color: Color,
         left: Option<Rc<RefCell<Node>>>,
         right: Option<Rc<RefCell<Node>>>,
         parent: Option<Weak<RefCell<Node>>>,
     ) -> Node {
-        Node {
-            key,
-            value,
-            color,
-            left,
-            right,
-            parent,
+        if let Some(value) = value {
+            Node {
+                key,
+                value: Some(String::from(value)),
+                color,
+                left,
+                right,
+                parent,
+            }
+        } else {
+            Node {
+                key,
+                value: None,
+                color,
+                left,
+                right,
+                parent,
+            }
         }
     }
 
@@ -482,26 +542,23 @@ impl RBTree {
         None
     }
 
-    pub fn search(&self, key: &str) -> Option<(String, i32)> {
+    pub fn search(&self, key: &str) -> Option<(String, Option<String>)> {
         let node = self.search_node(key);
         match node {
-            Some(node) => Some((node.borrow().key.clone(), node.borrow().value)),
+            Some(node) => Some((node.borrow().key.clone(), node.borrow().value.clone())),
             None => None,
         }
     }
 
-    pub fn delete(&mut self, key: &str) -> Result<&str, &str> {
-        let node = self.search_node(key);
-        match node {
-            Some(node) => {
-                node.borrow_mut().value = 0; //TODO: Add None here instead
-                Ok("Node succesfully deleted")
-            }
-            None => Err("No node with given key found"),
-        }
+    pub fn delete(&mut self, key: &str) {
+        self.insert_generic(key, None);
     }
 
-    pub fn insert(&mut self, key: &str, val: i32) {
+    pub fn insert(&mut self, key: &str, val: &str) {
+        self.insert_generic(key, Some(val));
+    }
+
+    fn insert_generic(&mut self, key: &str, val: Option<&str>) {
         let mut leaf_node: Option<Rc<RefCell<Node>>> = None;
         let mut iter: Option<Rc<RefCell<Node>>> = self.root.as_ref().cloned();
 
@@ -511,7 +568,11 @@ impl RBTree {
             match key.cmp(&iter_node.borrow().key) {
                 Ordering::Equal => {
                     unsafe {
-                        (*iter_node.as_ptr()).value = val;
+                        (*iter_node.as_ptr()).value = if let Some(val) = val {
+                            Some(String::from(val))
+                        } else {
+                            None
+                        };
                     }
                     return;
                 }
@@ -702,7 +763,7 @@ impl RBTree {
 }
 
 pub struct Succesor {
-    node: Option<Rc<RefCell<Node>>>,
+    node: Option<Rc<RefCell<Node>>>, //TODO: node should be a reference to Node. There is no point in keeping serving nodes when tree is removed.
 }
 
 impl Succesor {
@@ -729,12 +790,12 @@ impl Succesor {
 }
 
 impl Iterator for Succesor {
-    type Item = (String, i32);
+    type Item = (String, Option<String>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let node_clone = self.node.as_ref();
         if let Some(node) = node_clone.cloned() {
-            let ret = (node.borrow().key.clone(), node.borrow().value);
+            let ret = (node.borrow().key.clone(), node.borrow().value.clone());
             if let Some(right_child) = node.borrow().get_right_child() {
                 self.node = Some(Self::find_smallest(Rc::clone(&right_child)));
             } else {
@@ -754,6 +815,7 @@ impl Iterator for Succesor {
                 }
                 self.node = parent_op;
             }
+
             Some(ret)
         } else {
             None
