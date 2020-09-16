@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io;
 use std::io::{BufReader, Read, Write};
 use std::mem;
+use std::path::Path;
 
 //Both of the enums below constitute log record format
 
@@ -25,9 +26,9 @@ struct LogWriter {
 type KeyType = u64;
 
 impl LogWriter {
-    pub fn new() -> LogWriter {
+    pub fn new<P: AsRef<Path>>(path: P) -> LogWriter {
         LogWriter {
-            writer: File::create("./log/0000001.log").unwrap(),
+            writer: File::create(path).unwrap(),
         }
     }
 
@@ -53,8 +54,8 @@ impl LogWriter {
         self.writer.write(&vec)
     }
 
-    pub fn read() -> LogReader {
-        let f = File::open("./log/0000001.log").unwrap();
+    pub fn read<P: AsRef<Path>>(path: P) -> LogReader {
+        let f = File::open(path).unwrap();
 
         LogReader::new(f)
     }
