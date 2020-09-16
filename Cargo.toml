@@ -3,7 +3,7 @@
 [workspace]
 
 members = [
-    "server",
-    "memtable",
-    "log",
+    "src/server",
+    "src/memtable",
+    "src/log",
 ]
