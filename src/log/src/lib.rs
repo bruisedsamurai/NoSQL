@@ -1,5 +1,246 @@
 #[cfg(test)]
-mod tests {}
+mod tests {
+
+    use super::*;
+    use rand::Rng;
+    use std::fs::remove_file;
+    use std::mem::drop;
+
+    #[test]
+    fn test_file_creation() {
+        let path = "./00001.log";
+        LogWriter::new(path);
+        let result = File::open(path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_write_size_to_file() {
+        let mut writer = LogWriter::new("./00001.log");
+        let size = writer.put("foo", "bar").unwrap();
+
+        assert_eq!(size, 1 + 8 + 8 + 3 + 3);
+    }
+
+    #[test]
+    fn test_delete_size_to_file() {
+        let mut writer = LogWriter::new("./00001.log");
+        let size = writer.delete("foo").unwrap();
+
+        assert_eq!(size, 1 + 8 + 3);
+    }
+
+    #[test]
+    fn test_write_val_to_file() {
+        let path = "./00001.log";
+        let mut writer = LogWriter::new(path);
+        writer.put("foo", "bar").unwrap();
+
+        let mut f = File::open(path).unwrap();
+
+        let mut buffer = vec![0; 23];
+        f.read_exact(&mut buffer).unwrap();
+
+        assert_eq!(buffer[0], 0);
+
+        let mut slic: [u8; 8] = [0; 8];
+        slic.clone_from_slice(&buffer[1..9]);
+        assert_eq!(usize::from_be_bytes(slic), 3);
+
+        let mut slic: [u8; 8] = [0; 8];
+        slic.clone_from_slice(&buffer[9..17]);
+        assert_eq!(usize::from_be_bytes(slic), 3);
+
+        let mut slic: Vec<u8> = vec![0; 3];
+        slic.clone_from_slice(&buffer[17..20]);
+        assert_eq!(String::from_utf8(slic).unwrap(), "foo");
+
+        let mut slic: Vec<u8> = vec![0; 3];
+        slic.clone_from_slice(&buffer[20..23]);
+        assert_eq!(String::from_utf8(slic).unwrap(), "bar");
+    }
+
+    #[test]
+    fn test_sequence_write_val_to_file() {
+        let path = "./00001.log";
+
+        let sequence = [
+            ("229427529247013", "9441423005"),
+            ("59731486", "820063222306"),
+            ("367312", "951"),
+            ("7719318981985", "12075299017853"),
+            ("815154270", "094903"),
+            ("716584339405127", "1268"),
+            ("71327", "8"),
+        ];
+
+        let mut writer = LogWriter::new(path);
+
+        for (key, val) in sequence.iter() {
+            writer.put(key, val).unwrap();
+        }
+
+        let mut f = File::open(path).unwrap();
+
+        for (key, val) in sequence.iter() {
+            let mut buffer = vec![0; 1 + 8 + 8 + key.len() + val.len()];
+            f.read_exact(&mut buffer).unwrap();
+
+            assert_eq!(buffer[0], 0);
+
+            let mut slic: [u8; 8] = [0; 8];
+            slic.clone_from_slice(&buffer[1..9]);
+            assert_eq!(usize::from_be_bytes(slic), key.len());
+
+            let mut slic: [u8; 8] = [0; 8];
+            slic.clone_from_slice(&buffer[9..17]);
+            assert_eq!(usize::from_be_bytes(slic), val.len());
+
+            let mut slic: Vec<u8> = vec![0; key.len()];
+            slic.clone_from_slice(&buffer[17..key.len()]);
+            assert_eq!(String::from_utf8(slic).unwrap(), *key);
+
+            let begin = 17 + key.len();
+            let mut slic: Vec<u8> = vec![0; val.len()];
+            slic.clone_from_slice(&buffer[begin..val.len()]);
+            assert_eq!(String::from_utf8(slic).unwrap(), *val);
+        }
+    }
+
+    #[test]
+    fn test_delete_val_to_file() {
+        let path = "./00001.log";
+        let mut writer = LogWriter::new(path);
+        writer.delete("foo").unwrap();
+
+        let mut f = File::open(path).unwrap();
+
+        let mut buffer = vec![0; 12];
+        f.read_exact(&mut buffer).unwrap();
+
+        assert_eq!(buffer[0], 1);
+
+        let mut slic: [u8; 8] = [0; 8];
+        slic.clone_from_slice(&buffer[1..9]);
+        assert_eq!(usize::from_be_bytes(slic), 3);
+
+        let mut slic: Vec<u8> = vec![0; 3];
+        slic.clone_from_slice(&buffer[9..12]);
+        assert_eq!(String::from_utf8(slic).unwrap(), "foo");
+    }
+
+    #[test]
+    fn test_sequence_delete_val_to_file() {
+        let path = "./00001.log";
+
+        let sequence = [
+            "229427529247013",
+            "9441423005",
+            "59731486",
+            "820063222306",
+            "367312",
+            "951",
+            "7719318981985",
+            "12075299017853",
+            "815154270",
+            "094903",
+            "716584339405127",
+            "1268",
+            "71327",
+            "8",
+        ];
+
+        let mut writer = LogWriter::new(path);
+
+        for key in sequence.iter() {
+            writer.delete(key).unwrap();
+        }
+
+        let mut f = File::open(path).unwrap();
+
+        for key in sequence.iter() {
+            let mut buffer = vec![0; 1 + 8 + 8 + key.len()];
+            f.read_exact(&mut buffer).unwrap();
+
+            assert_eq!(buffer[0], 0);
+
+            let mut slic: [u8; 8] = [0; 8];
+            slic.clone_from_slice(&buffer[1..9]);
+            assert_eq!(usize::from_be_bytes(slic), key.len());
+
+            let mut slic: Vec<u8> = vec![0; key.len()];
+            slic.clone_from_slice(&buffer[9..key.len()]);
+            assert_eq!(String::from_utf8(slic).unwrap(), *key);
+        }
+    }
+
+    #[test]
+    fn test_iter_read_file() {
+        let path = "./00001.log";
+
+        let sequence = [
+            ("229427529247013", "9441423005"),
+            ("59731486", "820063222306"),
+            ("367312", "951"),
+            ("7719318981985", "12075299017853"),
+            ("815154270", "094903"),
+            ("716584339405127", "1268"),
+            ("71327", "8"),
+        ];
+
+        let mut writer = LogWriter::new(path);
+
+        let mut rng = rand::thread_rng();
+        let mut op_vec = vec![];
+
+        for (key, val) in sequence.iter() {
+            let op_type: bool = rng.gen();
+
+            if !op_type {
+                writer.put(key, val).unwrap();
+                op_vec.push(OpCode::Write);
+            } else {
+                writer.delete(key).unwrap();
+                op_vec.push(OpCode::Delete);
+            }
+        }
+
+        let mut reader = LogReader::new(path);
+
+        for (i, rec) in reader.enumerate() {
+            match op_vec[i] {
+                OpCode::Write => {
+                    let mut op_code: OpCode = OpCode::Delete;
+                    let mut key_len: usize = 0;
+                    let mut val_len: usize = 0;
+                    let mut key: String = "".to_string();
+                    let mut value: String = "".to_string();
+
+                    assert!(matches!(
+                        rec,
+                        Record::TypeValue(op_code, key_len, val_len, key, value)
+                    ));
+
+                    assert!(matches!(op_code, OpCode::Write));
+                    assert_eq!(key_len, sequence[i].0.len());
+                    assert_eq!(val_len, sequence[i].1.len());
+                    assert_eq!(key, sequence[i].0);
+                    assert_eq!(value, sequence[i].1);
+                }
+                OpCode::Delete => {
+                    let mut op_code: OpCode = OpCode::Write;
+                    let mut key_len: usize = 0;
+                    let mut key: String = "".to_string();
+
+                    assert!(matches!(rec, Record::TypeDelete(op_code, key_len, key)));
+                    assert!(matches!(op_code, OpCode::Write));
+                    assert_eq!(key_len, sequence[i].0.len());
+                    assert_eq!(key, sequence[i].0);
+                }
+            }
+        }
+    }
+}
 
 use std::fs::File;
 use std::io;
@@ -59,7 +300,6 @@ impl LogWriter {
 
         Ok(vec.len())
     }
-
 }
 
 pub struct LogReader {
