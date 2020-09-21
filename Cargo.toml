@@ -6,4 +6,5 @@ members = [
     "src/server",
     "src/memtable",
     "src/log",
+    "src/file"
 ]
