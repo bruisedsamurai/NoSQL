@@ -36,6 +36,10 @@ where
             node: ptr::null_mut(),
         }
     }
+
+    fn boxed_new(marked: bool, node: *mut Node<ValueType>) -> *mut NodeMarker<ValueType> {
+        Box::into_raw(Box::new(NodeMarker { marked, node }))
+    }
 }
 
 impl<ValueType> Node<ValueType>
@@ -121,14 +125,8 @@ where
                 unsafe {
                     if pred.as_ref().unwrap().next[bottom_level as usize]
                         .compare_exchange(
-                            &mut NodeMarker {
-                                marked: false,
-                                node: succ,
-                            },
-                            &mut NodeMarker {
-                                marked: false,
-                                node: new_node,
-                            },
+                            NodeMarker::boxed_new(false, succ),
+                            NodeMarker::boxed_new(false, new_node),
                             Ordering::SeqCst,
                             Ordering::SeqCst,
                         )
@@ -145,14 +143,8 @@ where
                         unsafe {
                             if pred.as_ref().unwrap().next[bottom_level as usize]
                                 .compare_exchange(
-                                    &mut NodeMarker {
-                                        marked: false,
-                                        node: succ,
-                                    },
-                                    &mut NodeMarker {
-                                        marked: false,
-                                        node: new_node,
-                                    },
+                                    NodeMarker::boxed_new(false, succ),
+                                    NodeMarker::boxed_new(false, new_node),
                                     Ordering::SeqCst,
                                     Ordering::SeqCst,
                                 )
@@ -191,14 +183,8 @@ where
                         marked = marker.as_ref().unwrap().marked;
                         while !marked {
                             let _ = node_to_remove.as_ref().unwrap().next[level].compare_exchange(
-                                &mut NodeMarker {
-                                    marked: false,
-                                    node: succ,
-                                },
-                                &mut NodeMarker {
-                                    marked: true,
-                                    node: succ,
-                                },
+                                NodeMarker::boxed_new(false, succ),
+                                NodeMarker::boxed_new(true, succ),
                                 Ordering::SeqCst,
                                 Ordering::SeqCst,
                             );
@@ -221,14 +207,8 @@ where
                     unsafe {
                         exchange_result = node_to_remove.as_ref().unwrap().next[BOTTOM_LEVEL]
                             .compare_exchange(
-                                &mut NodeMarker {
-                                    marked: false,
-                                    node: succ,
-                                },
-                                &mut NodeMarker {
-                                    marked: true,
-                                    node: succ,
-                                },
+                                NodeMarker::boxed_new(false, succ),
+                                NodeMarker::boxed_new(true, succ),
                                 Ordering::SeqCst,
                                 Ordering::SeqCst,
                             );
@@ -278,14 +258,8 @@ where
                         unsafe {
                             to_be_freed.push(curr);
                             snip = pred.as_ref().unwrap().next[lvl as usize].compare_exchange(
-                                &mut NodeMarker {
-                                    marked: false,
-                                    node: curr,
-                                },
-                                &mut NodeMarker {
-                                    marked: false,
-                                    node: succ,
-                                },
+                                NodeMarker::boxed_new(false, curr),
+                                NodeMarker::boxed_new(false, succ),
                                 Ordering::SeqCst,
                                 Ordering::SeqCst,
                             )
