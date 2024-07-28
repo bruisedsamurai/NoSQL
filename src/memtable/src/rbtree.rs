@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::distributions::Alphanumeric;
+    use rand::distributions::{Alphanumeric, DistString};
     use rand::Rng;
 
     #[test]
@@ -76,12 +76,7 @@ mod tests {
 
     #[test]
     fn test_tree_insertion_and_search() {
-        let sample = |_| {
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(20)
-                .collect::<String>()
-        };
+        let sample = |_| Alphanumeric.sample_string(&mut rand::thread_rng(), 20);
         let sample_vec = vec![0; 20];
         let sample_vec: Vec<String> = sample_vec.iter().map(sample).collect();
 
@@ -101,12 +96,7 @@ mod tests {
 
     #[test]
     fn test_tree_len() {
-        let sample = |_| {
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(20)
-                .collect::<String>()
-        };
+        let sample = |_| Alphanumeric.sample_string(&mut rand::thread_rng(), 20);
         let sample_vec = vec![0; 20];
         let sample_vec: Vec<String> = sample_vec.iter().map(sample).collect();
 
@@ -171,12 +161,7 @@ mod tests {
         let mut tree = RBTree::new();
         assert!(tree.root.is_none());
 
-        let rand_string_gen = || {
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(20)
-                .collect::<String>()
-        };
+        let rand_string_gen = || Alphanumeric.sample_string(&mut rand::thread_rng(), 20);
 
         tree.insert("b", &rand_string_gen());
         assert_eq!(tree.root.as_ref().unwrap().borrow().key, "b");
@@ -269,10 +254,7 @@ mod tests {
     }
 
     fn rand_string_gen() -> String {
-        rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(20)
-            .collect::<String>()
+        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
     }
 
     #[test]
