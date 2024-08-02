@@ -1,78 +1,8 @@
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rand::distributions::{Alphanumeric, DistString};
-    use rand::Rng;
+mod node;
+mod tests;
 
-    #[test]
-    fn test_skiplist() {
-        let mut skiplist = SkipList::new();
-        skiplist.add(0, "a");
-        skiplist.add(1, "b");
-        skiplist.add(2, "c");
-        skiplist.add(3, "d");
-        skiplist.add(4, "e");
-        skiplist.add(5, "f");
-        skiplist.add(6, "g");
-        skiplist.add(7, "h");
-        skiplist.add(8, "i");
-        skiplist.add(9, "j");
-
-        let result = skiplist.find(0);
-        assert_eq!(result.success, true);
-        let result = skiplist.find(1);
-        assert!(result.success);
-        let result = skiplist.find(2);
-        assert!(result.success);
-        let result = skiplist.find(3);
-        assert!(result.success);
-        let result = skiplist.find(4);
-        assert!(result.success);
-        let result = skiplist.find(5);
-        assert!(result.success);
-        let result = skiplist.find(6);
-        assert!(result.success);
-        let result = skiplist.find(7);
-        assert!(result.success);
-        let result = skiplist.find(8);
-        assert!(result.success);
-        let result = skiplist.find(9);
-        assert!(result.success);
-    }
-
-    #[test]
-    fn test_skiplist_remove() {
-        let mut skiplist = SkipList::new();
-        skiplist.add(0, "a");
-        skiplist.add(1, "b");
-        skiplist.add(2, "c");
-        skiplist.add(3, "d");
-        skiplist.add(4, "e");
-        skiplist.add(5, "f");
-        skiplist.add(6, "g");
-        skiplist.add(7, "h");
-        skiplist.add(8, "i");
-        skiplist.add(9, "j");
-
-        let success = skiplist.remove(0);
-        assert!(success);
-        let result = skiplist.find(0);
-        assert!(!result.success);
-        let success = skiplist.remove(1);
-        assert!(success);
-        let result = skiplist.find(1);
-        assert!(!result.success);
-        let success = skiplist.remove(2);
-        assert!(success);
-        let result = skiplist.find(2);
-        assert!(!result.success);
-        let success = skiplist.remove(3);
-        assert!(success);
-        let result = skiplist.find(3);
-        assert!(!result.success);
-    }
-}
 use crate::util::generate_random_lvl;
+use node::Node;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
@@ -83,18 +13,6 @@ use std::{
 use std::{ptr, result};
 
 type KeyType = u64;
-
-#[repr(align(2))]
-#[derive(Debug)]
-struct Node<ValueType>
-where
-    ValueType: Clone,
-{
-    pub key: KeyType,
-    pub value: Option<ValueType>,
-    top_level: usize,
-    pub next: [AtomicPtr<Node<ValueType>>; 32],
-}
 
 #[inline(always)]
 fn get_node<ValueType>(ptr: *mut Node<ValueType>) -> *mut Node<ValueType>
@@ -119,37 +37,6 @@ where
         (ptr as usize | 0x1) as *mut Node<ValueType>
     } else {
         ptr
-    }
-}
-
-impl<ValueType> Node<ValueType>
-where
-    ValueType: Clone,
-{
-    fn new_sentinel(key: KeyType) -> *mut Node<ValueType> {
-        const TOP_LEVEL: usize = 31;
-        let vec = (0..TOP_LEVEL + 1)
-            .map(|i| AtomicPtr::new(std::ptr::null_mut()))
-            .collect::<Vec<_>>();
-        Box::into_raw(Box::new(Node {
-            key,
-            value: None,
-            top_level: TOP_LEVEL,
-            next: vec.try_into().expect("Cannot convert to array"),
-        }))
-    }
-
-    fn new(key: KeyType, value: ValueType, height: usize) -> *mut Node<ValueType> {
-        const TOP_LEVEL: usize = 31;
-        let vec = (0..TOP_LEVEL + 1)
-            .map(|i| AtomicPtr::new(std::ptr::null_mut()))
-            .collect::<Vec<_>>();
-        Box::into_raw(Box::new(Node {
-            key,
-            value: Some(value),
-            top_level: height,
-            next: vec.try_into().expect("Cannot convert to array"),
-        }))
     }
 }
 
