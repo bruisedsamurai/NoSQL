@@ -1,4 +1,3 @@
-//TODO: Rename file to red black tree and use lib.rs for memtable
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,6 +88,7 @@ mod tests {
         for key in &sample_vec {
             assert!(
                 &rb_tree.search(key).unwrap().0 == key,
+                "{}",
                 format!("Did not find key: {}", key)
             );
         }
