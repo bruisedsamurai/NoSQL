@@ -39,7 +39,7 @@ mod tests {
         let result = skiplist.find(9);
         assert!(result.success);
     }
-    
+
     #[test]
     fn test_skiplist_remove() {
         let mut skiplist = SkipList::new();
@@ -74,12 +74,12 @@ mod tests {
 }
 use crate::util::generate_random_lvl;
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::{
     convert::TryInto,
     sync::atomic::{AtomicPtr, AtomicUsize},
 };
-use std::collections::HashSet;
 use std::{ptr, result};
 
 type KeyType = u64;
@@ -119,31 +119,6 @@ where
         (ptr as usize | 0x1) as *mut Node<ValueType>
     } else {
         ptr
-    }
-}
-
-#[derive(Debug)]
-struct NodeMarker<ValueType>
-where
-    ValueType: Clone,
-{
-    pub marked: bool,
-    pub node: *mut Node<ValueType>,
-}
-
-impl<ValueType> NodeMarker<ValueType>
-where
-    ValueType: Clone,
-{
-    fn empty_new() -> NodeMarker<ValueType> {
-        NodeMarker {
-            marked: false,
-            node: ptr::null_mut(),
-        }
-    }
-
-    fn boxed_new(marked: bool, node: *mut Node<ValueType>) -> *mut NodeMarker<ValueType> {
-        Box::into_raw(Box::new(NodeMarker { marked, node }))
     }
 }
 
@@ -399,12 +374,10 @@ where
                     }
                 }
                 preds[lvl as usize] = pred;
-                succs[lvl as usize] = curr; 
+                succs[lvl as usize] = curr;
             }
-            to_be_freed.into_iter().for_each(|node| {
-                unsafe {
-                    let _ =Box::from_raw(node);
-                }
+            to_be_freed.into_iter().for_each(|node| unsafe {
+                let _ = Box::from_raw(node);
             });
             unsafe {
                 return FindResult {
