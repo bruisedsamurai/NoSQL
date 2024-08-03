@@ -6,20 +6,19 @@ mod tests;
 
 use crate::util::generate_random_lvl;
 use find_result::FindResult;
-use node::{Node, KeyType};
+use node::{KeyType, Node};
 use std::borrow::Borrow;
 use std::collections::HashSet;
+use std::ops::DerefMut;
 use std::sync::atomic::Ordering;
 use std::{
     convert::TryInto,
     sync::atomic::{AtomicPtr, AtomicUsize},
 };
 use std::{ptr, result};
-use std::ops::DerefMut;
 
 // Reason for using pointers directly
 // https://rust-unofficial.github.io/too-many-lists/fifth-stacked-borrows.html
-
 
 #[inline(always)]
 fn get_node<ValueType>(ptr: *mut Node<ValueType>) -> *mut Node<ValueType>
@@ -72,8 +71,7 @@ where
         SkipList { head, tail }
     }
 
-    pub fn add(&self, key: KeyType, value: ValueType) -> bool
-    {
+    pub fn add(&self, key: KeyType, value: ValueType) -> bool {
         let top_level = generate_random_lvl(Self::MAX_LEVEL as u64);
         let bottom_level = 0;
         loop {
@@ -86,8 +84,7 @@ where
                 for level in 0..top_level + 1 {
                     let succ = result.succs[level as usize];
                     unsafe {
-                        (*new_node).next[level as usize]
-                            .store(succ, Ordering::SeqCst);
+                        (*new_node).next[level as usize].store(succ, Ordering::SeqCst);
                     }
                 }
                 let pred = result.preds[bottom_level as usize];
@@ -143,8 +140,7 @@ where
                 for level in (BOTTOM_LEVEL + 1..=height).rev() {
                     let mut marked;
                     unsafe {
-                        let composite =
-                            (*node_to_remove).next[level].load(Ordering::SeqCst);
+                        let composite = (*node_to_remove).next[level].load(Ordering::SeqCst);
                         succ = get_node(composite);
                         marked = get_marker(composite);
                         while !marked {
@@ -154,8 +150,7 @@ where
                                 Ordering::SeqCst,
                                 Ordering::SeqCst,
                             );
-                            let composite =
-                                (*node_to_remove).next[level].load(Ordering::SeqCst);
+                            let composite = (*node_to_remove).next[level].load(Ordering::SeqCst);
                             succ = get_node(composite);
                             marked = get_marker(composite);
                         }
@@ -163,25 +158,23 @@ where
                 }
                 let mut marked;
                 unsafe {
-                    let composite =
-                        (*node_to_remove).next[BOTTOM_LEVEL].load(Ordering::SeqCst);
+                    let composite = (*node_to_remove).next[BOTTOM_LEVEL].load(Ordering::SeqCst);
                     succ = get_node(composite);
                     marked = get_marker(composite);
                 }
                 loop {
                     let exchange_result;
                     unsafe {
-                        exchange_result = (*node_to_remove).next[BOTTOM_LEVEL]
-                            .compare_exchange(
-                                succ,
-                                add_marker(succ, true),
-                                Ordering::SeqCst,
-                                Ordering::SeqCst,
-                            );
-                        succ = get_node(
-                            (*result.succs[BOTTOM_LEVEL]).next[BOTTOM_LEVEL]
-                                .load(Ordering::SeqCst),
+                        exchange_result = (*node_to_remove).next[BOTTOM_LEVEL].compare_exchange(
+                            succ,
+                            add_marker(succ, true),
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
                         );
+                        let composite =
+                            (*result.succs[BOTTOM_LEVEL]).next[BOTTOM_LEVEL].load(Ordering::SeqCst);
+                        succ = get_node(composite);
+                        marked = get_marker(composite);
                     }
                     if exchange_result.is_ok() {
                         let _ = self.find(key);
@@ -209,14 +202,12 @@ where
             pred = self.head;
             for lvl in (bottom_level..=top_level).rev() {
                 unsafe {
-                    let composite =
-                        (*pred).next[lvl as usize].load(Ordering::SeqCst);
+                    let composite = (*pred).next[lvl as usize].load(Ordering::SeqCst);
                     curr = get_node(composite);
                 }
                 loop {
                     unsafe {
-                        let composite =
-                            (*curr).next[lvl as usize].load(Ordering::SeqCst);
+                        let composite = (*curr).next[lvl as usize].load(Ordering::SeqCst);
                         succ = get_node(composite);
                         marked = get_marker(composite);
                     }
@@ -234,13 +225,10 @@ where
                             continue 'retry;
                         }
                         unsafe {
-                            let composite =
-                                (*pred).next[lvl as usize].load(Ordering::SeqCst);
+                            let composite = (*pred).next[lvl as usize].load(Ordering::SeqCst);
                             debug_assert!(composite != std::ptr::null_mut());
                             curr = get_node(composite);
-                            let composite = (*curr)
-                                .next[lvl as usize]
-                                .load(Ordering::SeqCst);
+                            let composite = (*curr).next[lvl as usize].load(Ordering::SeqCst);
                             marked = get_marker(composite);
                             succ = get_node(composite);
                         }
@@ -290,5 +278,5 @@ where
     }
 }
 
-unsafe impl<V> Send for SkipList<V> where V: Clone  {}
-unsafe impl<V> Sync for SkipList<V> where V: Clone  {}
+unsafe impl<V> Send for SkipList<V> where V: Clone {}
+unsafe impl<V> Sync for SkipList<V> where V: Clone {}
