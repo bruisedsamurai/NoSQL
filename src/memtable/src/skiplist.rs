@@ -13,6 +13,7 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize},
 };
 use std::{ptr, result};
+use std::ops::DerefMut;
 
 type KeyType = u64;
 
@@ -67,7 +68,7 @@ where
         SkipList { head, tail }
     }
 
-    pub fn add(&mut self, key: KeyType, value: ValueType) -> bool
+    pub fn add(&self, key: KeyType, value: ValueType) -> bool
     where
         ValueType: Clone,
     {
@@ -124,7 +125,7 @@ where
         }
     }
 
-    pub fn remove(&mut self, key: KeyType) -> bool {
+    pub fn remove(&self, key: KeyType) -> bool {
         const BOTTOM_LEVEL: usize = 0;
         let mut succ;
         loop {
@@ -191,7 +192,7 @@ where
         }
     }
 
-    pub fn find(&mut self, key: KeyType) -> FindResult<ValueType> {
+    fn find(&self, key: KeyType) -> FindResult<ValueType> {
         let bottom_level = 0;
         let top_level = Self::MAX_LEVEL;
         let mut snip;
@@ -297,3 +298,6 @@ where
         }
     }
 }
+
+unsafe impl<V> Send for SkipList<V> where V: Clone  {}
+unsafe impl<V> Sync for SkipList<V> where V: Clone  {}
