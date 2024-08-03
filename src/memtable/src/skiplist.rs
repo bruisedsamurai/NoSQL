@@ -11,6 +11,7 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize},
 };
 use std::{ptr, result};
+use std::arch::x86_64::__m128;
 
 type KeyType = u64;
 
@@ -266,13 +267,15 @@ where
             to_be_freed.into_iter().for_each(|node| unsafe {
                 let _ = Box::from_raw(node);
             });
+            let success;
             unsafe {
-                return FindResult {
-                    success: curr.as_ref().unwrap().key == key,
-                    preds,
-                    succs,
-                };
+                success = curr.as_ref().unwrap().key == key;
             }
+            return FindResult {
+                success,
+                preds,
+                succs,
+            };
         }
     }
 }
