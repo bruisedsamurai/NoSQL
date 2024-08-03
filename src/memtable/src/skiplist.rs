@@ -4,7 +4,7 @@ mod tests;
 
 use crate::util::generate_random_lvl;
 use find_result::FindResult;
-use node::Node;
+use node::{Node, KeyType};
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
@@ -15,7 +15,9 @@ use std::{
 use std::{ptr, result};
 use std::ops::DerefMut;
 
-type KeyType = u64;
+// Reason for using pointers directly
+// https://rust-unofficial.github.io/too-many-lists/fifth-stacked-borrows.html
+
 
 #[inline(always)]
 fn get_node<ValueType>(ptr: *mut Node<ValueType>) -> *mut Node<ValueType>
@@ -58,19 +60,17 @@ where
     const MAX_LEVEL: u64 = 31;
 
     pub fn new() -> SkipList<ValueType> {
-        let head = Node::new_sentinel(0);
-        let tail = Node::new_sentinel(u64::MAX);
+        let head = Node::new_sentinel(i128::MIN);
+        let tail = Node::new_sentinel(i128::MAX);
         unsafe {
-            for i in 0..head.as_ref().unwrap().next.len() {
-                head.as_mut().unwrap().next[i] = AtomicPtr::new(tail);
+            for i in 0..(*head).next.len() {
+                (*head).next[i] = AtomicPtr::new(tail);
             }
         }
         SkipList { head, tail }
     }
 
     pub fn add(&self, key: KeyType, value: ValueType) -> bool
-    where
-        ValueType: Clone,
     {
         let top_level = generate_random_lvl(Self::MAX_LEVEL as u64);
         let bottom_level = 0;
@@ -84,14 +84,14 @@ where
                 for level in 0..top_level + 1 {
                     let succ = result.succs[level as usize];
                     unsafe {
-                        new_node.as_ref().unwrap().next[level as usize]
+                        (*new_node).next[level as usize]
                             .store(succ, Ordering::SeqCst);
                     }
                 }
                 let pred = result.preds[bottom_level as usize];
                 let succ = result.succs[bottom_level as usize];
                 unsafe {
-                    if pred.as_mut().unwrap().next[bottom_level as usize]
+                    if (*pred).next[bottom_level as usize]
                         .compare_exchange(succ, new_node, Ordering::SeqCst, Ordering::SeqCst)
                         .is_err()
                     {
@@ -105,7 +105,7 @@ where
                         let pred = result.preds[level as usize];
                         let succ = result.succs[level as usize];
                         unsafe {
-                            if pred.as_mut().unwrap().next[level as usize]
+                            if (*pred).next[level as usize]
                                 .compare_exchange(
                                     succ,
                                     new_node,
@@ -136,24 +136,24 @@ where
                 let node_to_remove = result.succs[BOTTOM_LEVEL];
                 let height;
                 unsafe {
-                    height = node_to_remove.as_ref().unwrap().top_level;
+                    height = (*node_to_remove).top_level;
                 }
                 for level in (BOTTOM_LEVEL + 1..=height).rev() {
                     let mut marked;
                     unsafe {
                         let composite =
-                            node_to_remove.as_ref().unwrap().next[level].load(Ordering::SeqCst);
+                            (*node_to_remove).next[level].load(Ordering::SeqCst);
                         succ = get_node(composite);
                         marked = get_marker(composite);
                         while !marked {
-                            let _ = node_to_remove.as_ref().unwrap().next[level].compare_exchange(
+                            let _ = (*node_to_remove).next[level].compare_exchange(
                                 succ,
                                 add_marker(succ, true),
                                 Ordering::SeqCst,
                                 Ordering::SeqCst,
                             );
                             let composite =
-                                node_to_remove.as_ref().unwrap().next[level].load(Ordering::SeqCst);
+                                (*node_to_remove).next[level].load(Ordering::SeqCst);
                             succ = get_node(composite);
                             marked = get_marker(composite);
                         }
@@ -162,14 +162,14 @@ where
                 let mut marked;
                 unsafe {
                     let composite =
-                        node_to_remove.as_ref().unwrap().next[BOTTOM_LEVEL].load(Ordering::SeqCst);
+                        (*node_to_remove).next[BOTTOM_LEVEL].load(Ordering::SeqCst);
                     succ = get_node(composite);
                     marked = get_marker(composite);
                 }
                 loop {
                     let exchange_result;
                     unsafe {
-                        exchange_result = node_to_remove.as_ref().unwrap().next[BOTTOM_LEVEL]
+                        exchange_result = (*node_to_remove).next[BOTTOM_LEVEL]
                             .compare_exchange(
                                 succ,
                                 add_marker(succ, true),
@@ -177,7 +177,7 @@ where
                                 Ordering::SeqCst,
                             );
                         succ = get_node(
-                            result.succs[BOTTOM_LEVEL].as_ref().unwrap().next[BOTTOM_LEVEL]
+                            (*result.succs[BOTTOM_LEVEL]).next[BOTTOM_LEVEL]
                                 .load(Ordering::SeqCst),
                         );
                     }
@@ -208,20 +208,20 @@ where
             for lvl in (bottom_level..=top_level).rev() {
                 unsafe {
                     let composite =
-                        pred.as_ref().unwrap().next[lvl as usize].load(Ordering::SeqCst);
+                        (*pred).next[lvl as usize].load(Ordering::SeqCst);
                     curr = get_node(composite);
                 }
                 loop {
                     unsafe {
                         let composite =
-                            curr.as_ref().unwrap().next[lvl as usize].load(Ordering::SeqCst);
+                            (*curr).next[lvl as usize].load(Ordering::SeqCst);
                         succ = get_node(composite);
                         marked = get_marker(composite);
                     }
                     while marked {
                         unsafe {
                             to_be_freed.insert(curr);
-                            snip = pred.as_mut().unwrap().next[lvl as usize].compare_exchange(
+                            snip = (*pred).next[lvl as usize].compare_exchange(
                                 curr,
                                 succ,
                                 Ordering::SeqCst,
@@ -233,21 +233,10 @@ where
                         }
                         unsafe {
                             let composite =
-                                pred.as_ref().unwrap().next[lvl as usize].load(Ordering::SeqCst);
+                                (*pred).next[lvl as usize].load(Ordering::SeqCst);
                             debug_assert!(composite != std::ptr::null_mut());
                             curr = get_node(composite);
-                            let composite = curr
-                                .as_ref()
-                                .expect(
-                                    format!(
-                                        "succ is null for key: {} where pred's key is {:?} where composite is {:?} and level is {}",
-                                        key,
-                                        pred.as_ref().unwrap().key,
-                                        composite,
-                                        lvl
-                                    )
-                                        .as_str(),
-                                )
+                            let composite = (*curr)
                                 .next[lvl as usize]
                                 .load(Ordering::SeqCst);
                             marked = get_marker(composite);
@@ -255,7 +244,7 @@ where
                         }
                     }
                     unsafe {
-                        if curr.as_ref().unwrap().key < key {
+                        if (*curr).key < key {
                             pred = curr;
                             curr = succ;
                         } else {
@@ -271,7 +260,7 @@ where
             });
             let success;
             unsafe {
-                success = curr.as_ref().unwrap().key == key;
+                success = (*curr).key == key;
             }
             return FindResult {
                 success,
@@ -290,11 +279,11 @@ where
         unsafe {
             let mut curr = self.head;
             while curr != self.tail {
-                let next = curr.as_ref().unwrap().next[0].load(Ordering::SeqCst);
-                let _ = Box::from_raw(curr);
+                let next = (*curr).next[0].load(Ordering::SeqCst);
+                let mut node = Box::from_raw(curr);
                 curr = get_node(next);
             }
-            let _ = Box::from_raw(curr);
+            let mut node = Box::from_raw(curr);
         }
     }
 }

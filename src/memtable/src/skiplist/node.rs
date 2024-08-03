@@ -1,5 +1,6 @@
-﻿use crate::skiplist::KeyType;
-use std::sync::atomic::AtomicPtr;
+﻿use std::sync::atomic::AtomicPtr;
+
+pub type KeyType = i128;
 
 #[repr(align(2))]
 #[derive(Debug)]
