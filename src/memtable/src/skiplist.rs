@@ -1,8 +1,9 @@
+mod find_result;
 mod node;
 mod tests;
-mod find_result;
 
 use crate::util::generate_random_lvl;
+use find_result::FindResult;
 use node::Node;
 use std::borrow::Borrow;
 use std::collections::HashSet;
@@ -12,7 +13,6 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize},
 };
 use std::{ptr, result};
-use find_result::FindResult;
 
 type KeyType = u64;
 
@@ -281,3 +281,19 @@ where
     }
 }
 
+impl<ValueType> Drop for SkipList<ValueType>
+where
+    ValueType: Clone,
+{
+    fn drop(&mut self) {
+        unsafe {
+            let mut curr = self.head;
+            while curr != self.tail {
+                let next = curr.as_ref().unwrap().next[0].load(Ordering::SeqCst);
+                let _ = Box::from_raw(curr);
+                curr = get_node(next);
+            }
+            let _ = Box::from_raw(curr);
+        }
+    }
+}
