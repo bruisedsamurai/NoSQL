@@ -1,5 +1,6 @@
 mod node;
 mod tests;
+mod find_result;
 
 use crate::util::generate_random_lvl;
 use node::Node;
@@ -11,7 +12,7 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize},
 };
 use std::{ptr, result};
-use std::arch::x86_64::__m128;
+use find_result::FindResult;
 
 type KeyType = u64;
 
@@ -280,11 +281,3 @@ where
     }
 }
 
-struct FindResult<ValueType>
-where
-    ValueType: Clone,
-{
-    pub success: bool,
-    pub preds: Vec<*mut Node<ValueType>>,
-    pub succs: Vec<*mut Node<ValueType>>,
-}
