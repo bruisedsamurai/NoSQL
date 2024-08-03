@@ -213,7 +213,6 @@ where
                     }
                     while marked {
                         unsafe {
-                            to_be_freed.insert(curr);
                             snip = (*pred).next[lvl as usize].compare_exchange(
                                 curr,
                                 succ,
@@ -224,6 +223,7 @@ where
                         if snip.is_err() {
                             continue 'retry;
                         }
+                        to_be_freed.insert(curr);
                         unsafe {
                             let composite = (*pred).next[lvl as usize].load(Ordering::SeqCst);
                             debug_assert!(composite != std::ptr::null_mut());
