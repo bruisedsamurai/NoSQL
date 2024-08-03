@@ -1,3 +1,5 @@
+//Algorithm reference
+//Herlihy, Maurice, et al. The art of multiprocessor programming. Newnes, 2020.
 mod find_result;
 mod node;
 mod tests;
