@@ -1,5 +1,6 @@
 //Algorithm reference
-//Herlihy, Maurice, et al. The art of multiprocessor programming. Newnes, 2020.
+// Herlihy, Maurice, Nir Shavit, Victor Luchangco, and Michael Spear.
+// The art of multiprocessor programming. Newnes, 2020.
 mod find_result;
 mod node;
 mod tests;
@@ -13,9 +14,9 @@ use std::ops::DerefMut;
 use std::sync::atomic::Ordering;
 use std::{
     convert::TryInto,
-    sync::atomic::{AtomicPtr, AtomicUsize},
+    sync::atomic::AtomicPtr,
 };
-use std::{ptr, result};
+use std::ptr;
 
 // Reason for using pointers directly
 // https://rust-unofficial.github.io/too-many-lists/fifth-stacked-borrows.html
