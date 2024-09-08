@@ -80,32 +80,31 @@ mod tests {
         total_hp_count: Arc<AtomicU32>,
         count: u32,
     ) {
-        let mut handles = vec![];
-        for i in 0..count {
-            let handle = thread::spawn({
-                let cloned_total_hp_count = Arc::clone(&total_hp_count);
-                let cloned_head = Arc::clone(&head);
+        thread::scope(|s| {
+            for i in 0..count {
+                let handle = s.spawn({
+                    let cloned_total_hp_count = Arc::clone(&total_hp_count);
+                    let cloned_head = Arc::clone(&head);
 
-                move || {
-                    let hp_record: *mut HazarPointerRecord<T> =
-                        HazarPointerRecord::allocate_hp_record(
-                            cloned_head,
-                            cloned_total_hp_count,
-                            5,
-                        );
-                    assert_ne!(hp_record, std::ptr::null_mut());
-                }
-            });
-            handles.push(handle);
-        }
-
-        handles.into_iter().for_each(|h| h.join().unwrap());
+                    move || {
+                        let hp_record: *mut HazarPointerRecord<T> =
+                            HazarPointerRecord::allocate_hp_record(
+                                cloned_head,
+                                cloned_total_hp_count,
+                                5,
+                            );
+                        assert_ne!(hp_record, std::ptr::null_mut());
+                    }
+                });
+            }
+        })
     }
 
     #[test]
     fn test_retiring_node_marks_it_inactive() {
         let mut total_hp_count = Arc::new(AtomicU32::new(0));
-        let mut head: Arc<AtomicPtr<HazarPointerRecord<i32>>> = Arc::new(AtomicPtr::new(std::ptr::null_mut()));
+        let mut head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
+            Arc::new(AtomicPtr::new(std::ptr::null_mut()));
 
         create_hp_record_in_parallel(head.clone(), total_hp_count.clone(), 2);
 
