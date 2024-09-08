@@ -1,6 +1,7 @@
 mod rbtree;
 mod skiplist;
 mod util;
+mod memory_management;
 
 trait Memtable {
     fn get(&self, key: &str) -> Option<String>;
