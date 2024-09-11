@@ -127,7 +127,7 @@ use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::Arc;
 
 pub struct HazarPointerRecord<T> {
-    pub hazar_pointers: Vec<*mut T>,
+    pub hazard_pointers: Vec<*mut T>,
     pub next: *mut HazarPointerRecord<T>,
     pub active: AtomicBool,
     pub r_list: HashSet<*mut T>,
@@ -181,7 +181,7 @@ impl<T> HazarPointerRecord<T> {
 
         //cursed code
         let hprec = Box::into_raw(Box::new(HazarPointerRecord {
-            hazar_pointers: vec![std::ptr::null_mut(); per_record_hp_count as usize],
+            hazard_pointers: vec![std::ptr::null_mut(); per_record_hp_count as usize],
             next: std::ptr::null_mut(),
             active: AtomicBool::new(true),
             r_list: HashSet::new(),
@@ -207,8 +207,8 @@ impl<T> HazarPointerRecord<T> {
         let hp_length;
         let hp_list: &mut Vec<*mut T>;
         unsafe {
-            hp_length = (*rec_node).hazar_pointers.len();
-            hp_list = (*rec_node).hazar_pointers.as_mut();
+            hp_length = (*rec_node).hazard_pointers.len();
+            hp_list = (*rec_node).hazard_pointers.as_mut();
         }
         for i in 0..hp_length {
             hp_list[i] = std::ptr::null_mut();
@@ -267,7 +267,7 @@ impl<T> HazarPointerRecord<T> {
         let mut hp_record = head;
         while hp_record != std::ptr::null_mut() {
             unsafe {
-                for h_pointer in (*hp_record).hazar_pointers.clone() {
+                for h_pointer in (*hp_record).hazard_pointers.clone() {
                     if !h_pointer.is_null() {
                         hazard_ptr_collection.insert(h_pointer);
                     }
