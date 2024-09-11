@@ -116,6 +116,7 @@ mod tests {
                 .load(Ordering::SeqCst));
         }
     }
+
 }
 
 // Michael, Maged M. "Hazard pointers: Safe memory reclamation for lock-free objects."
@@ -231,7 +232,7 @@ impl<T> HazarPointerRecord<T> {
         }
     }
 
-    pub fn help_scan(&mut self, head_hp_record: *mut HazarPointerRecord<T>, max_hptr_count: usize) {
+    fn help_scan(&mut self, head_hp_record: *mut HazarPointerRecord<T>, max_hptr_count: usize) {
         let mut hp_record = head_hp_record;
         while head_hp_record != std::ptr::null_mut() {
             unsafe {
@@ -261,7 +262,7 @@ impl<T> HazarPointerRecord<T> {
         }
     }
 
-    pub fn scan(&mut self, head: *mut HazarPointerRecord<T>) {
+    fn scan(&mut self, head: *mut HazarPointerRecord<T>) {
         let mut hazard_ptr_collection: HashSet<*mut T> = HashSet::new();
         let mut hp_record = head;
         while hp_record != std::ptr::null_mut() {
