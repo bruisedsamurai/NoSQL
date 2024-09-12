@@ -232,11 +232,13 @@ impl<T> HazarPointerRecord<T> {
         }
     }
 
+    /// Removes hazard pointers from inactive hazard pointer records
     fn help_scan(&mut self, head_hp_record: *mut HazarPointerRecord<T>, max_hptr_count: usize) {
         let mut hp_record = head_hp_record;
-        while head_hp_record != std::ptr::null_mut() {
+        while hp_record != std::ptr::null_mut() {
             unsafe {
                 if (*hp_record).active.load(Ordering::SeqCst) {
+                    hp_record = (*hp_record).next;
                     continue;
                 }
                 if !(*hp_record)
@@ -244,6 +246,7 @@ impl<T> HazarPointerRecord<T> {
                     .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
                     .is_ok()
                 {
+                    hp_record = (*hp_record).next;
                     continue;
                 }
                 for node in (*hp_record).r_list.iter() {
@@ -262,12 +265,13 @@ impl<T> HazarPointerRecord<T> {
         }
     }
 
+    /// Collect and release nodes if no hazar pointers from other hazard pointer records points to it
     fn scan(&mut self, head: *mut HazarPointerRecord<T>) {
         let mut hazard_ptr_collection: HashSet<*mut T> = HashSet::new();
         let mut hp_record = head;
         while hp_record != std::ptr::null_mut() {
             unsafe {
-                for h_pointer in (*hp_record).hazard_pointers.clone() {
+                for &h_pointer in (*hp_record).hazard_pointers.iter() {
                     if !h_pointer.is_null() {
                         hazard_ptr_collection.insert(h_pointer);
                     }
@@ -276,9 +280,9 @@ impl<T> HazarPointerRecord<T> {
             }
         }
 
-        let iter = self.r_list.drain().collect::<Vec<*mut T>>();
+        let vec = self.r_list.drain().collect::<Vec<*mut T>>();
         self.r_count = 0;
-        for node in iter {
+        for node in vec {
             if hazard_ptr_collection.contains(&node) {
                 self.r_list.insert(node);
                 self.r_count += 1;
