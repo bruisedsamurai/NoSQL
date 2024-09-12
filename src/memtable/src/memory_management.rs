@@ -106,7 +106,14 @@ mod tests {
         let mut head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
             Arc::new(AtomicPtr::new(std::ptr::null_mut()));
 
-        create_hp_record_in_parallel(head.clone(), total_hp_count.clone(), 2);
+        create_hp_record_in_parallel(head.clone(), total_hp_count.clone(), 10);
+
+        let (h1, h2) = (Box::into_raw(Box::new(10)), Box::into_raw(Box::new(10)));
+        unsafe {
+            let hazard_record = (*head).load(Ordering::SeqCst);
+            (*hazard_record).hazard_pointers[0] = h1;
+            (*hazard_record).hazard_pointers[1] = h2;
+        }
 
         HazarPointerRecord::retire_hp_record((*head).load(Ordering::SeqCst));
 
@@ -114,9 +121,30 @@ mod tests {
             assert!(!(*(*head).load(Ordering::SeqCst))
                 .active
                 .load(Ordering::SeqCst));
+            assert_eq!(
+                (*(*head).load(Ordering::SeqCst)).hazard_pointers[0],
+                std::ptr::null_mut()
+            );
+            assert_eq!(
+                (*(*head).load(Ordering::SeqCst)).hazard_pointers[1],
+                std::ptr::null_mut()
+            );
         }
     }
 
+    #[test]
+    fn test_retire_node_should_not_raise_exception() {
+        let mut total_hp_count = Arc::new(AtomicU32::new(0));
+        let mut head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
+            Arc::new(AtomicPtr::new(std::ptr::null_mut()));
+
+        create_hp_record_in_parallel(head.clone(), total_hp_count.clone(), 1);
+
+        let node = Box::into_raw(Box::new(10));
+        unsafe {
+            (*(*head).load(Ordering::SeqCst)).retire_node(node, (*head).load(Ordering::SeqCst), 0);
+        }
+    }
 }
 
 // Michael, Maged M. "Hazard pointers: Safe memory reclamation for lock-free objects."
