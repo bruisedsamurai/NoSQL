@@ -2,7 +2,7 @@
 mod tests {
     use super::*;
     use rand::distributions::{Alphanumeric, DistString};
-    use rand::Rng;
+    
 
     #[test]
     fn test_node_color_update() {
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn test_tree_insertion_and_search() {
         let sample = |_| Alphanumeric.sample_string(&mut rand::thread_rng(), 20);
-        let sample_vec = vec![0; 20];
+        let sample_vec = [0; 20];
         let sample_vec: Vec<String> = sample_vec.iter().map(sample).collect();
 
         let mut rb_tree = RBTree::new();
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn test_tree_len() {
         let sample = |_| Alphanumeric.sample_string(&mut rand::thread_rng(), 20);
-        let sample_vec = vec![0; 20];
+        let sample_vec = [0; 20];
         let sample_vec: Vec<String> = sample_vec.iter().map(sample).collect();
 
         let mut rb_tree = RBTree::new();
@@ -463,19 +463,11 @@ impl Node {
     }
 
     pub fn get_left_child(&self) -> Option<Rc<RefCell<Node>>> {
-        if let Some(left) = &self.left {
-            Some(Rc::clone(left))
-        } else {
-            None
-        }
+        self.left.as_ref().map(Rc::clone)
     }
 
     pub fn get_right_child(&self) -> Option<Rc<RefCell<Node>>> {
-        if let Some(right) = &self.right {
-            Some(Rc::clone(right))
-        } else {
-            None
-        }
+        self.right.as_ref().map(Rc::clone)
     }
 
     pub fn get_parent(&self) -> Option<Rc<RefCell<Node>>> {
@@ -526,10 +518,7 @@ impl RBTree {
 
     pub fn search(&self, key: &str) -> Option<(String, Option<String>)> {
         let node = self.search_node(key);
-        match node {
-            Some(node) => Some((node.borrow().key.clone(), node.borrow().value.clone())),
-            None => None,
-        }
+        node.map(|node| (node.borrow().key.clone(), node.borrow().value.clone()))
     }
 
     pub fn delete(&mut self, key: &str) {
@@ -550,11 +539,7 @@ impl RBTree {
             match key.cmp(&iter_node.borrow().key) {
                 Ordering::Equal => {
                     unsafe {
-                        (*iter_node.as_ptr()).value = if let Some(val) = val {
-                            Some(String::from(val))
-                        } else {
-                            None
-                        };
+                        (*iter_node.as_ptr()).value = val.map(String::from);
                     }
                     return;
                 }
@@ -603,7 +588,7 @@ impl RBTree {
                 .borrow()
                 .get_parent()
                 .expect("No grand parent found"); //grand parent is gauranteed to exist because we have parent's color red but root always have black color
-            if matches!(curr_node_gp.borrow().get_left_child(), Some(_))
+            if curr_node_gp.borrow().get_left_child().is_some()
                 && Rc::ptr_eq(
                     &curr_node_p,
                     &curr_node_gp
@@ -621,7 +606,7 @@ impl RBTree {
                         curr_node_gp.borrow_mut().update_color(Color::Red);
                     }
                     _ => {
-                        if matches!(curr_node_p.borrow().get_right_child(), Some(_))
+                        if curr_node_p.borrow().get_right_child().is_some()
                             && Rc::ptr_eq(
                                 &curr_node,
                                 &curr_node_p.borrow().get_right_child().unwrap(),
@@ -648,7 +633,7 @@ impl RBTree {
                         curr_node_gp.borrow_mut().update_color(Color::Red);
                     }
                     _ => {
-                        if matches!(curr_node_p.borrow().get_left_child(), Some(_))
+                        if curr_node_p.borrow().get_left_child().is_some()
                             && Rc::ptr_eq(
                                 &curr_node,
                                 &curr_node_p.borrow().get_left_child().unwrap(),
@@ -668,7 +653,7 @@ impl RBTree {
             }
         }
 
-        if matches!(self.root, Some(_)) {
+        if self.root.is_some() {
             self.root
                 .as_ref()
                 .unwrap()

@@ -1,25 +1,25 @@
-use crate::memory_management::hazard_pointers::HazarPointerRecord;
-use std::sync::atomic::{AtomicPtr, AtomicU32, Ordering};
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::ptr::null_mut;
+    
+    
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicPtr, AtomicU32, Ordering};
     use std::thread;
+    use crate::memory_management::hazard_pointers::HazarPointerRecord;
 
     fn free_hp_records<T>(rec: *mut HazarPointerRecord<T>) {
         let mut ptr = rec;
         while !ptr.is_null() {
-            let mut boxed_rec = unsafe { Box::from_raw(ptr) };
+            let boxed_rec = unsafe { Box::from_raw(ptr) };
             ptr = boxed_rec.next;
         }
     }
 
     #[test]
     fn test_creation_of_head_hazard_pointer_record() {
-        let mut total_hp_count = Arc::new(AtomicU32::new(0));
-        let mut head = Arc::new(AtomicPtr::new(std::ptr::null_mut()));
+        let total_hp_count = Arc::new(AtomicU32::new(0));
+        let head = Arc::new(AtomicPtr::new(std::ptr::null_mut()));
 
         let hp_record: *mut HazarPointerRecord<i32> = HazarPointerRecord::allocate_hp_record(
             Arc::clone(&head),
@@ -35,8 +35,8 @@ mod tests {
 
     #[test]
     fn test_creation_of_two_hazard_pointer_record() {
-        let mut total_hp_count = Arc::new(AtomicU32::new(0));
-        let mut head = Arc::new(AtomicPtr::new(std::ptr::null_mut()));
+        let total_hp_count = Arc::new(AtomicU32::new(0));
+        let head = Arc::new(AtomicPtr::new(std::ptr::null_mut()));
 
         let hp_record: *mut HazarPointerRecord<i32> =
             HazarPointerRecord::allocate_hp_record(head.clone(), total_hp_count.clone(), 5);
@@ -53,8 +53,8 @@ mod tests {
 
     #[test]
     fn test_parallel_creation_of_two_hazard_pointer_records() {
-        let mut total_hp_count = Arc::new(AtomicU32::new(0));
-        let mut head = Arc::new(AtomicPtr::new(std::ptr::null_mut()));
+        let total_hp_count = Arc::new(AtomicU32::new(0));
+        let head = Arc::new(AtomicPtr::new(std::ptr::null_mut()));
 
         let mut handles = vec![];
         for i in 0..2 {
@@ -159,8 +159,8 @@ mod tests {
 
     #[test]
     fn test_retire_node_should_not_raise_exception() {
-        let mut total_hp_count = Arc::new(AtomicU32::new(0));
-        let mut head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
+        let total_hp_count = Arc::new(AtomicU32::new(0));
+        let head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
             Arc::new(AtomicPtr::new(std::ptr::null_mut()));
 
         create_hp_record_in_parallel(head.clone(), total_hp_count.clone(), 10);
@@ -168,7 +168,7 @@ mod tests {
         let node = Box::into_raw(Box::new(10));
         unsafe {
             HazarPointerRecord::retire_node(
-                ((*head).load(Ordering::SeqCst)),
+                (*head).load(Ordering::SeqCst),
                 node,
                 (*head).load(Ordering::SeqCst),
                 0,
@@ -180,8 +180,8 @@ mod tests {
 
     #[test]
     fn test_node_pointed_by_hazard_pointer_should_not_be_freed() {
-        let mut total_hp_count = Arc::new(AtomicU32::new(0));
-        let mut head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
+        let total_hp_count = Arc::new(AtomicU32::new(0));
+        let head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
             Arc::new(AtomicPtr::new(std::ptr::null_mut()));
 
         create_hp_record_in_parallel(head.clone(), total_hp_count.clone(), 5);

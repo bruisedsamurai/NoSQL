@@ -9,11 +9,9 @@ use crate::memory_management::hazard_pointers::HazarPointerRecord;
 use crate::util::generate_random_lvl;
 use find_result::FindResult;
 use node::{KeyType, Node};
-use std::borrow::Borrow;
-use std::ops::DerefMut;
 use std::ptr;
 use std::sync::atomic::Ordering;
-use std::{convert::TryInto, sync::atomic::AtomicPtr};
+use std::sync::atomic::AtomicPtr;
 
 // Reason for using pointers directly
 // https://rust-unofficial.github.io/too-many-lists/fifth-stacked-borrows.html
@@ -83,8 +81,8 @@ where
             if result.success {
                 return false;
             } else {
-                debug_assert!(top_level <= Self::MAX_LEVEL as u64);
-                let mut new_node = Node::new(key, value.clone(), top_level as usize);
+                debug_assert!(top_level <= Self::MAX_LEVEL);
+                let new_node = Node::new(key, value.clone(), top_level as usize);
                 for level in 0..top_level + 1 {
                     let succ = result.succs[level as usize];
                     unsafe {
@@ -303,10 +301,10 @@ where
             let mut curr = self.head;
             while curr != self.tail {
                 let next = (*curr).next[0].load(Ordering::SeqCst);
-                let mut node = Box::from_raw(curr);
+                let node = Box::from_raw(curr);
                 curr = get_node(next);
             }
-            let mut node = Box::from_raw(curr);
+            let node = Box::from_raw(curr);
         }
     }
 }

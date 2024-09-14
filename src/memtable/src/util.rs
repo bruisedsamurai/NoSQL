@@ -1,4 +1,3 @@
-use std::{cmp::min, f32::consts::E};
 
 use rand::prelude::*;
 use rand_distr::StandardGeometric;
