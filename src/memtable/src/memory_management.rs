@@ -1,3 +1,3 @@
 
-mod hazard_pointers;
+pub mod hazard_pointers;
 mod tests;
