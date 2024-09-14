@@ -5,18 +5,15 @@ mod find_result;
 mod node;
 mod tests;
 
+use crate::memory_management::hazard_pointers::HazarPointerRecord;
 use crate::util::generate_random_lvl;
 use find_result::FindResult;
 use node::{KeyType, Node};
 use std::borrow::Borrow;
-use std::collections::HashSet;
 use std::ops::DerefMut;
-use std::sync::atomic::Ordering;
-use std::{
-    convert::TryInto,
-    sync::atomic::AtomicPtr,
-};
 use std::ptr;
+use std::sync::atomic::Ordering;
+use std::{convert::TryInto, sync::atomic::AtomicPtr};
 
 // Reason for using pointers directly
 // https://rust-unofficial.github.io/too-many-lists/fifth-stacked-borrows.html
@@ -72,11 +69,17 @@ where
         SkipList { head, tail }
     }
 
-    pub fn add(&self, key: KeyType, value: ValueType) -> bool {
-        let top_level = generate_random_lvl(Self::MAX_LEVEL as u64);
+    pub fn add(
+        &self,
+        key: KeyType,
+        value: ValueType,
+        hp_record: *mut HazarPointerRecord<Node<ValueType>>,
+        hp_head: *mut HazarPointerRecord<Node<ValueType>>,
+    ) -> bool {
+        let top_level = generate_random_lvl(Self::MAX_LEVEL);
         let bottom_level = 0;
         loop {
-            let result = self.find(key);
+            let result = self.find(key, hp_record, hp_head);
             if result.success {
                 return false;
             } else {
@@ -89,7 +92,13 @@ where
                     }
                 }
                 let pred = result.preds[bottom_level as usize];
+                unsafe {
+                    (*hp_record).hazard_pointers[0] = pred;
+                }
                 let succ = result.succs[bottom_level as usize];
+                unsafe {
+                    (*hp_record).hazard_pointers[1] = succ;
+                }
                 unsafe {
                     if (*pred).next[bottom_level as usize]
                         .compare_exchange(succ, new_node, Ordering::SeqCst, Ordering::SeqCst)
@@ -103,7 +112,13 @@ where
                 for level in bottom_level + 1..=top_level {
                     loop {
                         let pred = result.preds[level as usize];
+                        unsafe {
+                            (*hp_record).hazard_pointers[2] = pred;
+                        }
                         let succ = result.succs[level as usize];
+                        unsafe {
+                            (*hp_record).hazard_pointers[3] = succ;
+                        }
                         unsafe {
                             if (*pred).next[level as usize]
                                 .compare_exchange(
@@ -117,7 +132,7 @@ where
                                 break;
                             }
                         }
-                        result = self.find(key);
+                        result = self.find(key, hp_record, hp_head);
                     }
                 }
                 return true;
@@ -125,11 +140,16 @@ where
         }
     }
 
-    pub fn remove(&self, key: KeyType) -> bool {
+    pub fn remove(
+        &self,
+        key: KeyType,
+        hp_record: *mut HazarPointerRecord<Node<ValueType>>,
+        hp_head: *mut HazarPointerRecord<Node<ValueType>>,
+    ) -> bool {
         const BOTTOM_LEVEL: usize = 0;
         let mut succ;
         loop {
-            let result = self.find(key);
+            let result = self.find(key, hp_record, hp_head);
             if !result.success {
                 return false;
             } else {
@@ -143,6 +163,7 @@ where
                     unsafe {
                         let composite = (*node_to_remove).next[level].load(Ordering::SeqCst);
                         succ = get_node(composite);
+                        (*hp_record).hazard_pointers[0] = succ;
                         marked = get_marker(composite);
                         while !marked {
                             let _ = (*node_to_remove).next[level].compare_exchange(
@@ -153,6 +174,7 @@ where
                             );
                             let composite = (*node_to_remove).next[level].load(Ordering::SeqCst);
                             succ = get_node(composite);
+                            (*hp_record).hazard_pointers[0] = succ;
                             marked = get_marker(composite);
                         }
                     }
@@ -161,6 +183,7 @@ where
                 unsafe {
                     let composite = (*node_to_remove).next[BOTTOM_LEVEL].load(Ordering::SeqCst);
                     succ = get_node(composite);
+                    (*hp_record).hazard_pointers[1] = succ;
                     marked = get_marker(composite);
                 }
                 loop {
@@ -175,10 +198,11 @@ where
                         let composite =
                             (*result.succs[BOTTOM_LEVEL]).next[BOTTOM_LEVEL].load(Ordering::SeqCst);
                         succ = get_node(composite);
+                        (*hp_record).hazard_pointers[2] = succ;
                         marked = get_marker(composite);
                     }
                     if exchange_result.is_ok() {
-                        let _ = self.find(key);
+                        let _ = self.find(key, hp_record, hp_head);
                         return true;
                     } else if marked {
                         return false;
@@ -188,8 +212,13 @@ where
         }
     }
 
-    fn find(&self, key: KeyType) -> FindResult<ValueType> {
-        let bottom_level = 0;
+    fn find(
+        &self,
+        key: KeyType,
+        hazard_pointer_record: *mut HazarPointerRecord<Node<ValueType>>,
+        hp_head: *mut HazarPointerRecord<Node<ValueType>>,
+    ) -> FindResult<ValueType> {
+        const BOTTOM_LEVEL: u64 = 0;
         let top_level = Self::MAX_LEVEL;
         let mut snip;
         let mut pred: *mut Node<ValueType>;
@@ -198,18 +227,22 @@ where
         let mut succ;
         let mut preds = vec![std::ptr::null_mut(); top_level as usize + 1];
         let mut succs = vec![std::ptr::null_mut(); top_level as usize + 1];
-        let mut to_be_freed = HashSet::new();
         'retry: loop {
             pred = self.head;
-            for lvl in (bottom_level..=top_level).rev() {
+            unsafe {
+                (*hazard_pointer_record).hazard_pointers[0] = pred;
+            }
+            for lvl in (BOTTOM_LEVEL..=top_level).rev() {
                 unsafe {
                     let composite = (*pred).next[lvl as usize].load(Ordering::SeqCst);
                     curr = get_node(composite);
+                    (*hazard_pointer_record).hazard_pointers[1] = curr;
                 }
                 loop {
                     unsafe {
                         let composite = (*curr).next[lvl as usize].load(Ordering::SeqCst);
                         succ = get_node(composite);
+                        (*hazard_pointer_record).hazard_pointers[2] = succ;
                         marked = get_marker(composite);
                     }
                     while marked {
@@ -224,14 +257,16 @@ where
                         if snip.is_err() {
                             continue 'retry;
                         }
-                        to_be_freed.insert(curr);
+                        HazarPointerRecord::retire_node(hazard_pointer_record, curr, hp_head, 1);
                         unsafe {
                             let composite = (*pred).next[lvl as usize].load(Ordering::SeqCst);
                             debug_assert!(composite != std::ptr::null_mut());
                             curr = get_node(composite);
+                            (*hazard_pointer_record).hazard_pointers[1] = curr;
                             let composite = (*curr).next[lvl as usize].load(Ordering::SeqCst);
                             marked = get_marker(composite);
                             succ = get_node(composite);
+                            (*hazard_pointer_record).hazard_pointers[2] = succ;
                         }
                     }
                     unsafe {
@@ -246,9 +281,6 @@ where
                 preds[lvl as usize] = pred;
                 succs[lvl as usize] = curr;
             }
-            to_be_freed.into_iter().for_each(|node| unsafe {
-                let _ = Box::from_raw(node);
-            });
             let success;
             unsafe {
                 success = (*curr).key == key;
