@@ -120,8 +120,8 @@ mod tests {
 
     #[test]
     fn test_retiring_node_marks_it_inactive() {
-        let mut total_hp_count = Arc::new(AtomicU32::new(0));
-        let mut head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
+        let total_hp_count = Arc::new(AtomicU32::new(0));
+        let head: Arc<AtomicPtr<HazarPointerRecord<i32>>> =
             Arc::new(AtomicPtr::new(std::ptr::null_mut()));
 
         create_hp_record_in_parallel(head.clone(), total_hp_count.clone(), 10);
@@ -167,7 +167,12 @@ mod tests {
 
         let node = Box::into_raw(Box::new(10));
         unsafe {
-            (*(*head).load(Ordering::SeqCst)).retire_node(node, (*head).load(Ordering::SeqCst), 0);
+            HazarPointerRecord::retire_node(
+                ((*head).load(Ordering::SeqCst)),
+                node,
+                (*head).load(Ordering::SeqCst),
+                0,
+            );
         }
 
         free_hp_records(head.load(Ordering::SeqCst));
@@ -191,7 +196,9 @@ mod tests {
 
         unsafe {
             (*hp_record).hazard_pointers[0] = node;
-            (*hp_record).retire_node(node, (*head).load(Ordering::SeqCst), 0);
+        }
+        HazarPointerRecord::retire_node(hp_record, node, (*head).load(Ordering::SeqCst), 0);
+        unsafe {
             drop(Box::from_raw(node));
         }
 

@@ -97,21 +97,29 @@ impl<T> HazarPointerRecord<T> {
     }
 
     pub fn retire_node(
-        &mut self,
+        self_ptr: *mut HazarPointerRecord<T>,
         node: *mut T,
         head: *mut HazarPointerRecord<T>,
-        max_hptr_count: usize,
+        max_r_count: usize,
     ) {
-        self.r_list.insert(node);
-        self.r_count += 1;
-        if self.r_count >= max_hptr_count {
-            self.scan(head);
-            self.help_scan(head, max_hptr_count);
+        let self_r_count;
+        unsafe {
+            (*self_ptr).r_list.insert(node);
+            (*self_ptr).r_count += 1;
+            self_r_count = (*self_ptr).r_count;
+        }
+        if self_r_count >= max_r_count {
+            HazarPointerRecord::scan(self_ptr, head);
+            HazarPointerRecord::help_scan(self_ptr, head, max_r_count);
         }
     }
 
     /// Removes hazard pointers from inactive hazard pointer records
-    fn help_scan(&mut self, head_hp_record: *mut HazarPointerRecord<T>, max_hptr_count: usize) {
+    pub fn help_scan(
+        self_ptr: *mut HazarPointerRecord<T>,
+        head_hp_record: *mut HazarPointerRecord<T>,
+        max_hptr_count: usize,
+    ) {
         let mut hp_record = head_hp_record;
         while hp_record != std::ptr::null_mut() {
             unsafe {
@@ -130,11 +138,11 @@ impl<T> HazarPointerRecord<T> {
                 for node in (*hp_record).r_list.iter() {
                     (*hp_record).r_list.remove(node);
                     (*hp_record).r_count -= 1;
-                    self.r_list.insert(*node);
-                    self.r_count += 1;
+                    (*self_ptr).r_list.insert(*node);
+                    (*self_ptr).r_count += 1;
                     let head = head_hp_record;
-                    if self.r_count >= max_hptr_count {
-                        self.scan(head);
+                    if (*self_ptr).r_count >= max_hptr_count {
+                        HazarPointerRecord::scan(self_ptr, head);
                     }
                 }
                 (*hp_record).active.store(false, Ordering::SeqCst);
@@ -144,7 +152,7 @@ impl<T> HazarPointerRecord<T> {
     }
 
     /// Collect and release nodes if no hazar pointers from other hazard pointer records points to it
-    fn scan(&mut self, head: *mut HazarPointerRecord<T>) {
+    fn scan(self_ptr: *mut HazarPointerRecord<T>, head: *mut HazarPointerRecord<T>) {
         let mut hazard_ptr_collection: HashSet<*mut T> = HashSet::new();
         let mut hp_record = head;
         while hp_record != std::ptr::null_mut() {
@@ -158,12 +166,17 @@ impl<T> HazarPointerRecord<T> {
             }
         }
 
-        let vec = self.r_list.drain().collect::<Vec<*mut T>>();
-        self.r_count = 0;
+        let vec;
+        unsafe {
+            vec = (*self_ptr).r_list.drain().collect::<Vec<*mut T>>();
+            (*self_ptr).r_count = 0;
+        }
         for node in vec {
             if hazard_ptr_collection.contains(&node) {
-                self.r_list.insert(node);
-                self.r_count += 1;
+                unsafe {
+                    (*self_ptr).r_list.insert(node);
+                    (*self_ptr).r_count += 1;
+                }
             } else {
                 unsafe {
                     let _ = Box::from_raw(node);
@@ -172,3 +185,11 @@ impl<T> HazarPointerRecord<T> {
         }
     }
 }
+
+// Todo: Implement drop trait for HPR
+//
+// impl<T> Drop for HazarPointerRecord<T> {
+//     fn drop(&mut self) {
+//         HazarPointerRecord::retire_hp_record(self as *mut HazarPointerRecord<T>);
+//     }
+// }
