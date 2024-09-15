@@ -1,7 +1,7 @@
 ﻿#[cfg(test)]
 mod tests {
     use super::super::HazarPointerRecord;
-    
+
     use crate::skiplist::SkipList;
     use std::sync::atomic::{AtomicPtr, AtomicU32, Ordering};
     use std::sync::Arc;
@@ -118,47 +118,55 @@ mod tests {
             let arc_head = Arc::clone(&head);
             let arc_total_hptr_count = Arc::clone(&total_hptr_count);
 
-            s.spawn(|| {
-                let hp_record = HazarPointerRecord::allocate_hp_record(
-                    Arc::clone(&head),
-                    Arc::clone(&total_hptr_count),
-                    5,
-                );
-                let success = skiplist.remove(0, hp_record, head.load(Ordering::SeqCst));
-                assert!(success);
-            });
+            let handle = thread::Builder::new()
+                .name("remove_0".into())
+                .spawn_scoped(s, || {
+                    let hp_record = HazarPointerRecord::allocate_hp_record(
+                        Arc::clone(&head),
+                        Arc::clone(&total_hptr_count),
+                        5,
+                    );
+                    let success = skiplist.remove(0, hp_record, head.load(Ordering::SeqCst));
+                    assert!(success);
+                });
 
-            let handle = s.spawn(|| {
-                let hp_record = HazarPointerRecord::allocate_hp_record(
-                    Arc::clone(&head),
-                    Arc::clone(&total_hptr_count),
-                    5,
-                );
-                let success = skiplist.remove(1, hp_record, head.load(Ordering::SeqCst));
-                assert!(success);
-            });
+            let handle = thread::Builder::new()
+                .name("remove_1".into())
+                .spawn_scoped(s, || {
+                    let hp_record = HazarPointerRecord::allocate_hp_record(
+                        Arc::clone(&head),
+                        Arc::clone(&total_hptr_count),
+                        5,
+                    );
+                    let success = skiplist.remove(1, hp_record, head.load(Ordering::SeqCst));
+                    assert!(success);
+                });
 
-            handle.join().unwrap();
+            thread::Builder::new()
+                .name("remove_2".into())
+                .spawn_scoped(s, || {
+                    let hp_record = HazarPointerRecord::allocate_hp_record(
+                        Arc::clone(&head),
+                        Arc::clone(&total_hptr_count),
+                        5,
+                    );
+                    let success = skiplist.remove(2, hp_record, head.load(Ordering::SeqCst));
+                    assert!(success);
+                })
+                .unwrap();
 
-            s.spawn(|| {
-                let hp_record = HazarPointerRecord::allocate_hp_record(
-                    Arc::clone(&head),
-                    Arc::clone(&total_hptr_count),
-                    5,
-                );
-                let success = skiplist.remove(2, hp_record, head.load(Ordering::SeqCst));
-                assert!(success);
-            });
-
-            s.spawn(|| {
-                let hp_record = HazarPointerRecord::allocate_hp_record(
-                    Arc::clone(&head),
-                    Arc::clone(&total_hptr_count),
-                    5,
-                );
-                let success = skiplist.remove(3, hp_record, head.load(Ordering::SeqCst));
-                assert!(success);
-            });
+            thread::Builder::new()
+                .name("remove_3".into())
+                .spawn_scoped(s, || {
+                    let hp_record = HazarPointerRecord::allocate_hp_record(
+                        Arc::clone(&head),
+                        Arc::clone(&total_hptr_count),
+                        5,
+                    );
+                    let success = skiplist.remove(3, hp_record, head.load(Ordering::SeqCst));
+                    assert!(success);
+                })
+                .unwrap();
         });
     }
 }
