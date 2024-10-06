@@ -1,4 +1,5 @@
-﻿use std::sync::atomic::AtomicPtr;
+﻿use std::sync::Arc;
+use std::sync::atomic::AtomicPtr;
 
 pub type KeyType = i128;
 
@@ -18,22 +19,21 @@ impl<ValueType> Node<ValueType>
 where
     ValueType: Clone,
 {
+    pub const TOP_LEVEL: usize = 31;
     pub fn new_sentinel(key: KeyType) -> *mut Node<ValueType> {
-        const TOP_LEVEL: usize = 31;
-        let vec = (0..TOP_LEVEL + 1)
+        let vec = (0..Node::<ValueType>::TOP_LEVEL + 1)
             .map(|i| AtomicPtr::new(std::ptr::null_mut()))
             .collect::<Vec<_>>();
         Box::into_raw(Box::new(Node {
             key,
             value: None,
-            top_level: TOP_LEVEL,
+            top_level: Node::<ValueType>::TOP_LEVEL,
             next: vec.try_into().expect("Cannot convert to array"),
         }))
     }
 
     pub fn new(key: KeyType, value: ValueType, height: usize) -> *mut Node<ValueType> {
-        const TOP_LEVEL: usize = 31;
-        let vec = (0..TOP_LEVEL + 1)
+        let vec = (0..Node::<ValueType>::TOP_LEVEL + 1)
             .map(|i| AtomicPtr::new(std::ptr::null_mut()))
             .collect::<Vec<_>>();
         Box::into_raw(Box::new(Node {

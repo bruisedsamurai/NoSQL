@@ -12,7 +12,7 @@ mod tests {
         let mut ptr = rec;
         while !ptr.is_null() {
             let boxed_rec = unsafe { Box::from_raw(ptr) };
-            ptr = boxed_rec.next;
+            ptr = boxed_rec.next.load(Ordering::SeqCst);
         }
     }
 
@@ -82,7 +82,7 @@ mod tests {
             count += 1;
             unsafe {
                 assert!((*record).active.load(Ordering::SeqCst));
-                record = (*record).next;
+                record = (*record).next.load(Ordering::SeqCst);
             }
         }
 
@@ -129,22 +129,24 @@ mod tests {
         let (h1, h2) = (Box::into_raw(Box::new(10)), Box::into_raw(Box::new(10)));
         unsafe {
             let hazard_record = (*head).load(Ordering::SeqCst);
-            (*hazard_record).hazard_pointers[0] = h1;
-            (*hazard_record).hazard_pointers[1] = h2;
+            (*hazard_record).hazard_pointers[0].store(h1,Ordering::SeqCst);
+            (*hazard_record).hazard_pointers[1].store(h2,Ordering::SeqCst);
         }
 
-        HazarPointerRecord::retire_hp_record((*head).load(Ordering::SeqCst));
+        unsafe{
+            HazarPointerRecord::retire_hp_record(head.load(Ordering::SeqCst));
+        }
 
         unsafe {
             assert!(!(*(*head).load(Ordering::SeqCst))
                 .active
                 .load(Ordering::SeqCst));
             assert_eq!(
-                (*(*head).load(Ordering::SeqCst)).hazard_pointers[0],
+                (*(*head).load(Ordering::SeqCst)).hazard_pointers[0].load(Ordering::SeqCst),
                 std::ptr::null_mut()
             );
             assert_eq!(
-                (*(*head).load(Ordering::SeqCst)).hazard_pointers[1],
+                (*(*head).load(Ordering::SeqCst)).hazard_pointers[1].load(Ordering::SeqCst),
                 std::ptr::null_mut()
             );
         }
@@ -167,12 +169,7 @@ mod tests {
 
         let node = Box::into_raw(Box::new(10));
         unsafe {
-            HazarPointerRecord::retire_node(
-                (*head).load(Ordering::SeqCst),
-                node,
-                (*head).load(Ordering::SeqCst),
-                0,
-            );
+                HazarPointerRecord::retire_node(head.load(Ordering::SeqCst),(*head).load(Ordering::SeqCst),node,0);
         }
 
         free_hp_records(head.load(Ordering::SeqCst));
@@ -190,15 +187,15 @@ mod tests {
         let mut hp_record = head.load(Ordering::SeqCst);
         for i in 0..4 {
             unsafe {
-                hp_record = (*hp_record).next;
+                hp_record = (*hp_record).next.load(Ordering::SeqCst);
             }
         }
 
         unsafe {
-            (*hp_record).hazard_pointers[0] = node;
+            (*hp_record).hazard_pointers[0].store(node,Ordering::SeqCst);
         }
-        HazarPointerRecord::retire_node(hp_record, node, (*head).load(Ordering::SeqCst), 0);
         unsafe {
+                HazarPointerRecord::retire_node(head.load(Ordering::SeqCst),hp_record, node, 0);
             drop(Box::from_raw(node));
         }
 
